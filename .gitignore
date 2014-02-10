@@ -1,3 +1,7 @@
+# Executables, swap files, etc
+.*.swp
+rtable
+
 # Compiled Object files
 *.slo
 *.lo
