@@ -143,6 +143,8 @@ void Rainbow_table <NUM_ROWS, MAX_KEY_LEN, CIPHER_OUTPUT_LEN, CIPHER_FN>::genera
     print_key(key);
   }
 
+  // Copy the end key to the chain
+  strncpy(table[chain_number].end, key, MAX_KEY_LEN);
   std::cout << std::endl;
 }
 

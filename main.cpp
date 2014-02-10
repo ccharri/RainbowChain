@@ -35,7 +35,7 @@ void SHA_CIPHER_FN(char digest[SHA_OUTPUT_LEN], const char * key)
 
 int main()
 {
-  vector <reduction_function_t> reduction_functions = { reduceone, reduceone, reduceone, reduceone };
+  vector <reduction_function_t> reduction_functions(100, reduceone);
   vector <const char *>         initial_keys        = { "swordfi", "another", "iloveyou" };
 
   Rainbow_table <3, MAX_KEY_LENGTH, SHA_OUTPUT_LEN, SHA_CIPHER_FN> 
