@@ -34,7 +34,7 @@ template
 <
   size_t NUM_ROWS,              // The number of rows in the table
   size_t MAX_KEY_LEN,           // The maximum number of bytes in a key
-  size_t CIPHER_OUTPUT_LEN,     // The size of the cipher output in bits
+  size_t CIPHER_OUTPUT_LEN,     // The size of the cipher output in bytes
   cipher_function_t CIPHER_FN   // The cipher function used to generate the table
 >
 class Rainbow_table

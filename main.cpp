@@ -10,7 +10,7 @@
 using std::vector;
 
 const size_t MAX_KEY_LENGTH = 8;
-const size_t SHA_OUTPUT_LEN = 256;
+const size_t SHA_OUTPUT_LEN = 32;
 
 
 void reduceone(char key[MAX_KEY_LENGTH], const char * digest)
