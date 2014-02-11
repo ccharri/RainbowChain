@@ -14,28 +14,21 @@
 
 
 // Reduction and Cipher function types used by the table
-typedef void (*reduction_function_t)(char * key, const char * cipher);
+typedef void (*reduction_function_t)(char * key, const char * cipher, size_t step);
 typedef void (*cipher_function_t)(char * cipher, const char * key);
-
-
-// Exception type
-struct Rainbow_exception
-{
-  Rainbow_exception(const char * err_in)
-  : err(err_in)
-  {}
-
-  const char * err;
-};
 
 
 // The rainbow table structure
 template 
 <
-  size_t NUM_ROWS,              // The number of rows in the table
-  size_t MAX_KEY_LEN,           // The maximum number of bytes in a key
-  size_t CIPHER_OUTPUT_LEN,     // The size of the cipher output in bytes
-  cipher_function_t CIPHER_FN   // The cipher function used to generate the table
+  size_t NUM_ROWS,             // The number of rows in the table
+  size_t CHAIN_LENGTH,         // The number of links in each rainbow chain
+
+  reduction_function_t RED_FN, // The family of reduction functions to use for this table
+  size_t MAX_KEY_LEN,          // The maximum number of bytes in a key
+
+  cipher_function_t CIPHER_FN, // The cipher function used to generate the table
+  size_t CIPHER_OUTPUT_LEN     // The size of the cipher output in bytes
 >
 class Rainbow_table
 {
@@ -43,8 +36,7 @@ public:
 
   // Constructor constructs the table from the input initialization
   // key list and the list of reduction functions
-  Rainbow_table(const std::vector <reduction_function_t> & reduction_functions_in,
-                const std::vector <const char *>         & intial_keys); 
+  Rainbow_table(const std::vector <const char *> & intial_keys); 
 
 
 // Helper functions
@@ -54,8 +46,14 @@ private:
   void generate_table(const std::vector <const char *> & initial_keys);
 
 
-  // Generates an individual chain in the table for index chain_number
-  void generate_chain(const std::vector <const char *> & initial_keys, size_t chain_number);
+  // Generates an individual chain in the table starting from the input intial key, generating
+  // chainlength iterations, and writing the ending key in the input endpoint buffer
+  void generate_chain_from_key(const char * initial_key, size_t chain_length, char endpoint[MAX_KEY_LEN]);
+
+
+  // Generates a chain starting from the input index of the chain, with the input digest as the
+  // hash at this point, stores the ending key in the input endpoint variable
+  void generate_chain_from_hash(const char * hash, size_t chain_link_index, char endpoint[MAX_KEY_LEN]);
 
 
 // Structure definitions
@@ -72,39 +70,44 @@ private:
 // Instance variables
 private:
 
-  // The list of reduction functions
-  const std::vector <reduction_function_t> reduction_functions;
-
   // The table data store
   Rainbow_chain table[NUM_ROWS];
 };
 
 
+
 // Constructor constructs the table from the input initialization
 // key list and the list of reduction functions
-template <size_t NUM_ROWS, size_t MAX_KEY_LEN, size_t CIPHER_OUTPUT_LEN, cipher_function_t CIPHER_FN>
-Rainbow_table <NUM_ROWS, MAX_KEY_LEN, CIPHER_OUTPUT_LEN, CIPHER_FN>::Rainbow_table(
-  const std::vector <reduction_function_t> & reduction_functions_in,
-  const std::vector <const char *>         & initial_keys
+template 
+<
+  size_t NUM_ROWS, size_t CHAIN_LENGTH, reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::Rainbow_table(
+  const std::vector <const char *> & initial_keys
 ) 
-: reduction_functions(reduction_functions_in)
 {
-  if (initial_keys.size() != NUM_ROWS)
-    throw Rainbow_exception("Incorrect number of initial keys provided");
-  else
-    generate_table(initial_keys);
+  generate_table(initial_keys);
 }
 
 
 // Generates the table from the input initial keys
-template <size_t NUM_ROWS, size_t MAX_KEY_LEN, size_t CIPHER_OUTPUT_LEN, cipher_function_t CIPHER_FN>
-void Rainbow_table <NUM_ROWS, MAX_KEY_LEN, CIPHER_OUTPUT_LEN, CIPHER_FN>::generate_table(
+template 
+<
+  size_t NUM_ROWS, size_t CHAIN_LENGTH, reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_table(
   const std::vector <const char *> & initial_keys
 )
 {
   // For each provided intial key, generate a chain
-  for (size_t i = 0; i < initial_keys.size(); ++i)
-    generate_chain(initial_keys, i);
+  for (size_t i = 0; i < NUM_ROWS; ++i)
+  {
+    const char * key = initial_keys[i];
+    strncpy(table[i].start, key, MAX_KEY_LEN);
+    generate_chain_from_key(table[i].start, CHAIN_LENGTH, table[i].end);
+  }
 }
 
 
@@ -115,36 +118,60 @@ void print_key(const char * key)
 }
 
 
-// Generates an individual chain in the table for index chain_number
-template <size_t NUM_ROWS, size_t MAX_KEY_LEN, size_t CIPHER_OUTPUT_LEN, cipher_function_t CIPHER_FN>
-void Rainbow_table <NUM_ROWS, MAX_KEY_LEN, CIPHER_OUTPUT_LEN, CIPHER_FN>::generate_chain(
-  const std::vector <const char *> & initial_keys,
-  size_t                             chain_number 
+// Generates a chain starting from the input index of the chain, with the input digest as the
+// hash at this point, stores the ending key in the input endpoint variable
+template 
+<
+  size_t NUM_ROWS, size_t CHAIN_LENGTH, reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_chain_from_hash(
+  const char * hash, 
+  size_t       chain_link_index, 
+  char         endpoint[MAX_KEY_LEN]
+)
+{
+  // Reduce the hash to a starting key
+  RED_FN(endpoint, hash, chain_link_index);
+  
+  // From this link to the end of the chain
+  for (size_t i = chain_link_index; i < CHAIN_LENGTH; ++i)
+  {
+    std::cout << " -> "; print_key(endpoint);
+    // Hash the current key, then reduce it to the next key 
+    char hashbuf[CIPHER_OUTPUT_LEN];
+    CIPHER_FN(hashbuf, endpoint);
+    RED_FN(endpoint, hashbuf, i);
+  }
+
+  std::cout << std::endl;
+}
+  
+  
+
+// Generates an individual chain in the table starting from the input intial key, generating
+// chainlength iterations, and writing the ending key in the input endpoint buffer
+template 
+<
+  size_t NUM_ROWS, size_t CHAIN_LENGTH, reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_chain_from_key(
+  const char * initial_key, 
+  size_t       chain_length, 
+  char         endpoint[MAX_KEY_LEN]
 )
 {
   // Copy the key to the startpoint for this chain
-  const char * key = initial_keys[chain_number];
-  strncpy(table[chain_number].start, key, MAX_KEY_LEN);
   std::cout << "Producing chain from key ";
-  print_key(key);
+  print_key(initial_key);
 
-  // For each reduction function, encipher the key, and reduce
-  // it, producing another link in the chain
-  for (reduction_function_t redux_fun : reduction_functions)
-  {
-    // encipher the key
-    char digest[CIPHER_OUTPUT_LEN];
-    CIPHER_FN(digest, key);
+  // Encipher the key and generate from here to end of chain from
+  // first digest
+  char hashbuf[CIPHER_OUTPUT_LEN];
+  CIPHER_FN(hashbuf, initial_key);
+  generate_chain_from_hash(hashbuf, 0, endpoint);
 
-    char keybuf[MAX_KEY_LEN];
-    redux_fun(keybuf, digest);
-    key = keybuf;
-    std::cout << " -> ";
-    print_key(key);
-  }
-
-  // Copy the end key to the chain
-  strncpy(table[chain_number].end, key, MAX_KEY_LEN);
   std::cout << std::endl;
 }
 

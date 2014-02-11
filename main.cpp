@@ -11,9 +11,11 @@ using std::vector;
 
 const size_t MAX_KEY_LENGTH = 8;
 const size_t SHA_OUTPUT_LEN = 32;
+const size_t NUM_ROWS       = 3;
+const size_t CHAIN_LENGTH   = 100;
 
 
-void reduceone(char key[MAX_KEY_LENGTH], const char * digest)
+void reduceone(char key[MAX_KEY_LENGTH], const char * digest, size_t step)
 {
   size_t ctr = 0;
   for (size_t i = 0; i < SHA_OUTPUT_LEN && ctr < MAX_KEY_LENGTH; ++i)
@@ -22,7 +24,7 @@ void reduceone(char key[MAX_KEY_LENGTH], const char * digest)
       key[ctr++] = digest[i];
   }
 
-  if (ctr < SHA_OUTPUT_LEN)
+  if (ctr < MAX_KEY_LENGTH)
     key[ctr] = '\0';
 }
 
@@ -35,9 +37,8 @@ void SHA_CIPHER_FN(char digest[SHA_OUTPUT_LEN], const char * key)
 
 int main()
 {
-  vector <reduction_function_t> reduction_functions(100, reduceone);
   vector <const char *>         initial_keys        = { "swordfi", "another", "iloveyou" };
 
-  Rainbow_table <3, MAX_KEY_LENGTH, SHA_OUTPUT_LEN, SHA_CIPHER_FN> 
-    rtable(reduction_functions, initial_keys);
+  Rainbow_table <NUM_ROWS, CHAIN_LENGTH, reduceone, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN> 
+    rtable(initial_keys);
 }

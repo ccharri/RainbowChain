@@ -1,6 +1,6 @@
 # Compiler stuff
 CXX 		 = g++
-CXXFLAGS = -std=c++11 -Wall
+CXXFLAGS = -std=c++11 -Wall -ggdb
 
 
 # The files we'll be compiling
