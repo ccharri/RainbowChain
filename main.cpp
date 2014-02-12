@@ -15,9 +15,10 @@ using std::cout; using std::endl;
 // SHA Rainbow Table params
 const size_t MAX_KEY_LENGTH = 8;
 const size_t SHA_OUTPUT_LEN = 20;
-const size_t NUM_ROWS       = 10000;
-const size_t CHAIN_LENGTH   = 1000;
+const size_t NUM_ROWS       = 10;
+const size_t CHAIN_LENGTH   = 10;
 const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 
 
 void best_redux_func(char key[MAX_KEY_LENGTH], const char * digest, size_t step)
@@ -41,4 +42,9 @@ int main()
 {
   Rainbow_table <NUM_ROWS, CHAIN_LENGTH, best_redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN> 
     rtable(CHARACTER_SET);
+
+  const char gkey[MAX_KEY_LENGTH] = "jbm";
+  char gdigest[SHA_OUTPUT_LEN];
+  SHA_CIPHER_FN(gdigest, gkey);
+  cout << "Found matching password " << rtable.search(gdigest) << endl;
 }

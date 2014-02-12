@@ -40,6 +40,11 @@ public:
   Rainbow_table(const std::string & character_set); 
 
 
+  // Searches the table for the input hash, returning the corresponding
+  // password if found, null otherwise
+  std::string search(const char * digest);
+
+
 // Structure definitions
 private:
 
@@ -64,6 +69,8 @@ private:
 // Helper functions
 private:
 
+  const Rainbow_chain * find_matching_endpoint(const Rainbow_chain * endpoint);
+
   // Generates the table 
   void generate_table();
 
@@ -79,7 +86,7 @@ private:
 
   // Generates a chain starting from the input index of the chain, with the input digest as the
   // hash at this point, stores the ending key in the input endpoint variable
-  void generate_chain_from_hash(const char * hash, size_t chain_link_index, char endpoint[MAX_KEY_LEN]);
+  void generate_chain_from_hash(const char * hash, size_t chain_link_index, size_t chain_length, char endpoint[MAX_KEY_LEN]);
 
 
   // Writes the next key to be generated into the slot at input table index
@@ -98,7 +105,7 @@ private:
 
 void print_key(const char * key)
 {
-  for (int i = 0; i < 8; ++i)
+  for (int i = 0; i < 8 && key[i]; ++i)
     std::cout << key[i];
 }
 
@@ -128,7 +135,7 @@ template
 >
 void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_table()
 {
-  const static size_t NUM_GENERATIONS = 2;
+  const static size_t NUM_GENERATIONS = 1;
   Rainbow_chain * start = table;
 
   // For each provided intial key, generate a chain
@@ -176,6 +183,7 @@ template
 void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_chain_from_hash(
   const char * hash, 
   size_t       chain_link_index, 
+  size_t       chain_length, 
   char         endpoint[MAX_KEY_LEN]
 )
 {
@@ -183,13 +191,16 @@ void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPH
   RED_FN(endpoint, hash, chain_link_index);
   
   // From this link to the end of the chain
-  for (size_t i = chain_link_index; i < CHAIN_LENGTH; ++i)
+  for (size_t i = 1; i < chain_length; ++i)
   {
     // Hash the current key, then reduce it to the next key 
     char hashbuf[CIPHER_OUTPUT_LEN];
     CIPHER_FN(hashbuf, endpoint);
-    RED_FN(endpoint, hashbuf, i);
+    RED_FN(endpoint, hashbuf, chain_link_index + i);
+    std::cout << " -> ";  print_key(endpoint);
   }
+
+  std::cout << std::endl;
 }
   
   
@@ -207,11 +218,18 @@ void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPH
   char         endpoint[MAX_KEY_LEN]
 )
 {
+  if (chain_length == 0)
+  {
+    strncpy(endpoint, initial_key, MAX_KEY_LEN);
+    return;
+  }
+
   // Encipher the key and generate from here to end of chain from
   // first digest
+  std::cout << "Generating from key "; print_key(initial_key);
   char hashbuf[CIPHER_OUTPUT_LEN];
   CIPHER_FN(hashbuf, initial_key);
-  generate_chain_from_hash(hashbuf, 0, endpoint);
+  generate_chain_from_hash(hashbuf, 0, chain_length, endpoint);
 }
 
 
@@ -240,5 +258,56 @@ void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPH
   }
 }
 
+template 
+<
+  size_t NUM_ROWS, size_t CHAIN_LENGTH, reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+typename Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::Rainbow_chain const *
+Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::find_matching_endpoint(
+  const Rainbow_chain * test
+)
+{
+  const Rainbow_chain * itr = std::lower_bound(table, table + NUM_ROWS, *test);
+
+  if (strncmp(itr->end, test->end, MAX_KEY_LEN) == 0)
+    return itr;
+
+  return nullptr;
+}
+
+
+// Searches the table for the input hash, returning the corresponding
+// password if found, null otherwise
+template 
+<
+  size_t NUM_ROWS, size_t CHAIN_LENGTH, reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+std::string Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::search(
+  const char * digest
+)
+{
+  // For each link in the chain try to reverse the hash as though it were there
+  for (size_t i = CHAIN_LENGTH; i > 0; --i)
+  {
+    Rainbow_chain test;
+    std::cout << "Generating chain from hash: Index: " << i - 1 << " Length: " << CHAIN_LENGTH - i + 1 << std::endl;
+    generate_chain_from_hash(digest, i - 1, CHAIN_LENGTH - i + 1, test.end);
+    const Rainbow_chain * location = find_matching_endpoint(&test);
+
+    if (location)
+    {
+      generate_chain_from_key(location->start, i-1, test.end);
+      char real_digest[CIPHER_OUTPUT_LEN];
+      CIPHER_FN(real_digest, test.end);
+
+      if (memcmp(real_digest, digest, CIPHER_OUTPUT_LEN) == 0)
+        return std::string(test.end, test.end + MAX_KEY_LEN);
+    }
+  }
+
+  return "";
+}
 
 #endif
