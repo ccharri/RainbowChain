@@ -117,10 +117,6 @@ Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OU
 {
   generate_table();
 
-  //for (size_t i = 0; i < NUM_ROWS; ++i)
-  //{
-  //  std::cout << "Row " << i << ": "; print_key(table[i].start); std::cout << " -> "; print_key(table[i].end); std::cout << std::endl;
-  //}
 }
 
 
@@ -132,7 +128,7 @@ template
 >
 void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_table()
 {
-  const static size_t NUM_GENERATIONS = 100;
+  const static size_t NUM_GENERATIONS = 10;
   Rainbow_chain * start = table;
 
   // For each provided intial key, generate a chain
@@ -143,6 +139,11 @@ void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPH
     std::sort(table, table + NUM_ROWS);
     start = std::unique(table, table + NUM_ROWS);
     std::cout << "There are now " << (start - table) << " unique endpoints" << std::endl;
+  }
+
+  for (Rainbow_chain * row = table; row < start; ++row)
+  {
+    std::cout << "Row " << row - table << ": "; print_key(row->start); std::cout << " -> "; print_key(row->end); std::cout << std::endl;
   }
 }
 
