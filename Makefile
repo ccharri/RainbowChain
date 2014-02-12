@@ -4,8 +4,8 @@ CXXFLAGS = -std=c++11 -Wall -O3
 
 
 # The files we'll be compiling
-HDRS = $(wildcard *.h)
-SRCS = $(wildcard *.cpp)
+HDRS = Rainbow_table.h
+SRCS = main.cpp
 OBJS = $(SRCS:.cpp=.o) $(SRCS_SLN:.cpp=.o)
 LIBS = -lssl -lcrypto
 
