@@ -15,7 +15,7 @@ using std::cout; using std::endl;
 // SHA Rainbow Table params
 const size_t MAX_KEY_LENGTH = 8;
 const size_t SHA_OUTPUT_LEN = 32;
-const size_t NUM_ROWS       = 10000;
+const size_t NUM_ROWS       = 1000000;
 const size_t CHAIN_LENGTH   = 100;
 const size_t CHARSET_SIZE   = 512;
 const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -64,13 +64,18 @@ void redux_func(char key[MAX_KEY_LENGTH], const char * digest, size_t step)
   for (size_t i = 0; i < MAX_KEY_LENGTH; ++i)
   {
     // Point to the ith 4 byte chunk in the hash
-    const uint32_t * chunk_ptr = (const uint32_t *) (digest + 4 * i);
+    uint16_t rchunk = *(const uint16_t *) (digest + 4 * i);
+    uint16_t lchunk = *(const uint16_t *) (digest + 4 * i + 2);
 
     // For each byte in the chunk, add the step 
-    for (size_t i = 0; i < sizeof(uint32_t); ++i)
-      ((char *) chunk_ptr)[i] += step;
-
-    key[i] = CHARSET[*chunk_ptr];
+    for (size_t i = 0; i < sizeof(uint16_t); ++i)
+    {
+      ((char *) &rchunk)[i] += step;
+      ((char *) &lchunk)[i] += step;
+    }
+    
+    uint16_t chunk = rchunk + lchunk;
+    key[i] = CHARSET[chunk];
   }
 }
 

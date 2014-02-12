@@ -40,27 +40,6 @@ public:
   Rainbow_table(const std::string & character_set); 
 
 
-// Helper functions
-private:
-
-  // Generates the table from the input initial keys
-  void generate_table();
-
-
-  // Generates an individual chain in the table starting from the input intial key, generating
-  // chainlength iterations, and writing the ending key in the input endpoint buffer
-  void generate_chain_from_key(const char * initial_key, size_t chain_length, char endpoint[MAX_KEY_LEN]);
-
-
-  // Generates a chain starting from the input index of the chain, with the input digest as the
-  // hash at this point, stores the ending key in the input endpoint variable
-  void generate_chain_from_hash(const char * hash, size_t chain_link_index, char endpoint[MAX_KEY_LEN]);
-
-
-  // Writes the next key to be generated into the slot at input table index
-  void write_next_key(size_t table_index);
-
-
 // Structure definitions
 private:
 
@@ -80,6 +59,31 @@ private:
       return strncmp(end, other.end, MAX_KEY_LEN) == 0;
     }
   };
+
+
+// Helper functions
+private:
+
+  // Generates the table 
+  void generate_table();
+
+
+  // Generates the table from the input row down
+  void generate_table_from(Rainbow_chain * starting_row);
+
+
+  // Generates an individual chain in the table starting from the input intial key, generating
+  // chainlength iterations, and writing the ending key in the input endpoint buffer
+  void generate_chain_from_key(const char * initial_key, size_t chain_length, char endpoint[MAX_KEY_LEN]);
+
+
+  // Generates a chain starting from the input index of the chain, with the input digest as the
+  // hash at this point, stores the ending key in the input endpoint variable
+  void generate_chain_from_hash(const char * hash, size_t chain_link_index, char endpoint[MAX_KEY_LEN]);
+
+
+  // Writes the next key to be generated into the slot at input table index
+  void write_next_key(Rainbow_chain * starting_row);
 
 
 // Instance variables
@@ -113,16 +117,14 @@ Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OU
 {
   generate_table();
 
-  for (size_t i = 0; i < NUM_ROWS; ++i)
-  {
-    std::cout << "Row " << i << ": "; print_key(table[i].start); std::cout << " -> "; print_key(table[i].end); std::cout << std::endl;
-  }
-
-  std::cout << "There are " << std::unique(table, table + NUM_ROWS) - table << " unique endpoints" << std::endl;
+  //for (size_t i = 0; i < NUM_ROWS; ++i)
+  //{
+  //  std::cout << "Row " << i << ": "; print_key(table[i].start); std::cout << " -> "; print_key(table[i].end); std::cout << std::endl;
+  //}
 }
 
 
-// Generates the table from the input initial keys
+// Generates the table 
 template 
 <
   size_t NUM_ROWS, size_t CHAIN_LENGTH, reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
@@ -130,15 +132,39 @@ template
 >
 void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_table()
 {
-  // For each provided intial key, generate a chain
-  for (size_t i = 0; i < NUM_ROWS; ++i)
-  {
-    write_next_key(i);
-    generate_chain_from_key(table[i].start, CHAIN_LENGTH, table[i].end);
-  }
+  const static size_t NUM_GENERATIONS = 100;
+  Rainbow_chain * start = table;
 
-  std::sort(table, table + NUM_ROWS);
+  // For each provided intial key, generate a chain
+  for (size_t i = 0; i < NUM_GENERATIONS && size_t(start - table) < NUM_ROWS; ++i)
+  {
+    std::cout << "Running generation " << i << std::endl;
+    generate_table_from(start);
+    std::sort(table, table + NUM_ROWS);
+    start = std::unique(table, table + NUM_ROWS);
+    std::cout << "There are now " << (start - table) << " unique endpoints" << std::endl;
+  }
 }
+
+
+// Generates the table from the input row down
+template 
+<
+  size_t NUM_ROWS, size_t CHAIN_LENGTH, reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_table_from(
+  Rainbow_chain * starting_row
+)
+{
+  for (Rainbow_chain * row = starting_row; row < table + NUM_ROWS; ++row)
+  {
+    write_next_key(row);
+    generate_chain_from_key(row->start, CHAIN_LENGTH, row->end);
+  }
+}
+    
+    
 
 
 // Generates a chain starting from the input index of the chain, with the input digest as the
@@ -196,13 +222,15 @@ template
   size_t NUM_ROWS, size_t CHAIN_LENGTH, reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
   cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
 >
-void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::write_next_key(size_t table_index)
+void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::write_next_key(
+  Rainbow_chain * row_ptr
+)
 {
   bool increment = true;
 
   for (size_t i = 0; i < MAX_KEY_LEN; ++i)
   {
-    table[table_index].start[i] = character_set[indices[i]];
+    row_ptr->start[i] = character_set[indices[i]];
 
     if (increment)
     {
