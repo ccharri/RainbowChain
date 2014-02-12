@@ -1,14 +1,16 @@
+// John Norwood
+// Chris Harris
+// EECS 588
+// Password_Cracker.cpp
+
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <iostream>
 #include <string>
 #include <sstream>
 #include <fstream>
-#include <cstring>
 #include <ctype.h>
-#include <cstdint>
 
 #include <openssl/sha.h>   // SHA256
 
