@@ -74,6 +74,11 @@ private:
     {
       return strncmp(end, other.end, MAX_KEY_LEN) < 0;
     }
+
+    bool operator ==(const Rainbow_chain & other) const
+    {
+      return strncmp(end, other.end, MAX_KEY_LEN) == 0;
+    }
   };
 
 
@@ -113,7 +118,7 @@ Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OU
     std::cout << "Row " << i << ": "; print_key(table[i].start); std::cout << " -> "; print_key(table[i].end); std::cout << std::endl;
   }
 
-  std::cout << "There are ";
+  std::cout << "There are " << std::unique(table, table + NUM_ROWS) - table << " unique endpoints" << std::endl;
 }
 
 
