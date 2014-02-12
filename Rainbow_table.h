@@ -69,6 +69,11 @@ private:
   {
     char start[MAX_KEY_LEN];
     char end  [MAX_KEY_LEN];
+
+    bool operator <(const Rainbow_chain & other) const
+    {
+      return strncmp(end, other.end, MAX_KEY_LEN) < 0;
+    }
   };
 
 
@@ -80,6 +85,13 @@ private:
   const std::string    character_set;   // The set of characters we're exploring
 };
 
+
+
+void print_key(const char * key)
+{
+  for (int i = 0; i < 8; ++i)
+    std::cout << key[i];
+}
 
 
 // Constructor constructs the table from the input initialization
@@ -95,14 +107,15 @@ Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OU
 : indices(MAX_KEY_LEN, 0), character_set(character_set_in)
 {
   generate_table();
+
+  for (size_t i = 0; i < NUM_ROWS; ++i)
+  {
+    std::cout << "Row " << i << ": "; print_key(table[i].start); std::cout << " -> "; print_key(table[i].end); std::cout << std::endl;
+  }
+
+  std::cout << "There are ";
 }
 
-
-void print_key(const char * key)
-{
-  for (int i = 0; i < 8; ++i)
-    std::cout << key[i];
-}
 
 // Generates the table from the input initial keys
 template 
@@ -116,11 +129,10 @@ void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPH
   for (size_t i = 0; i < NUM_ROWS; ++i)
   {
     write_next_key(i);
-    std::cout << "Generating chain from key "; print_key(table[i].start);
     generate_chain_from_key(table[i].start, CHAIN_LENGTH, table[i].end);
-    std::cout << " -> "; print_key(table[i].end);
-    std::cout << std::endl;
   }
+
+  std::sort(table, table + NUM_ROWS);
 }
 
 
