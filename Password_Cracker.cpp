@@ -4,12 +4,19 @@
 #include <unistd.h>
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <fstream>
 #include <cstring>
+#include <ctype.h>
+#include <cstdint>
 
 #include <openssl/sha.h>   // SHA256
 
+const size_t SHA_OUTPUT_LEN = 20;
+
 using std::cout; using std::cin; using std::endl; using std::string; using std::ifstream;
+
+class Exception{};
 
 int parseCommands(int argc, char** argv, string* dataFile, string* passFile)
 {
@@ -35,11 +42,58 @@ int parseCommands(int argc, char** argv, string* dataFile, string* passFile)
     return 0;
 }
 
+int char2int(char input)
+{
+	if(input >= '0' && input <= '9')
+	{
+		return input - '0';
+	}
+
+	if(input >= 'A' && input <= 'F')
+	{
+		return input - 'A' + 10;
+	}
+
+	if(input >= 'a' && input <= 'f')
+	{
+		return input - 'a' + 10;
+	}
+
+	throw Exception();
+}
+
+
+void hexstr_to_bin(const string & digest, char * buffer)
+{
+	memset(buffer, 0, SHA_OUTPUT_LEN);
+	for (int i = 0; i < digest.size(); i += 2)
+	{
+		char msn = digest[i];
+		char lsn = digest[i+1];
+
+		buffer[i/2] = (char2int(msn) << 4) + char2int(lsn);
+	}
+}
+
+string binary_to_hexstr(char* binary, int len)
+{
+	std::stringstream ss;
+    ss<<std::hex;
+    for(int i(0);i<len;++i)
+    {
+        ss<<(u_int16_t)((binary[i] & 0xF0) >> 4);
+    	ss<<(u_int16_t)(binary[i] & 0x0F);
+    }
+    return ss.str();
+}
+
+
 int main(int argc, char** argv)
 {
    string dataFile;
    string passFile;
-   char buffer[160/8];
+   char pbuffer[SHA_OUTPUT_LEN];
+   char lbuffer[SHA_OUTPUT_LEN];
  	
  	if(parseCommands(argc, argv, &dataFile, &passFile))
  	{
@@ -56,14 +110,44 @@ int main(int argc, char** argv)
    string password;
    while(dfile >> line)
    {
-   		// cout << line << endl;
+   		hexstr_to_bin(line, lbuffer);
 
    		while(pfile >> password)
    		{
-   			SHA1((const unsigned char *)password.c_str(), password.length(), (unsigned char *) buffer);
-   			if(strcmp(line.c_str(), buffer) == 0)
+   			memset(&pbuffer, 0, SHA_OUTPUT_LEN);
+   			SHA1((const unsigned char *)password.c_str(), password.length(), (unsigned char *) pbuffer);
+
+   			/*
+   			string hex = binary_to_hexstr(pbuffer, SHA_OUTPUT_LEN);
+   			cout << password << "\t- " << "\"";
+   			for(int i = 0; i < hex.length(); ++i)
+   			{
+   				cout << hex[i];
+   			}
+
+   			cout << "\"" <<  endl;
+			*/
+
+			/*
+   			 cout << ">"; 
+   			 for(int i = 0; i < sizeof(lbuffer); ++i)
+   			 {
+   			 	cout << lbuffer[i];
+   			 }
+
+   			 cout << "\t- " << password << "\t- ";
+
+   			 for(int i = 0; i < sizeof(pbuffer); ++i)
+   			 {
+   			 	cout << pbuffer[i];
+   			 }
+
+   			cout << endl;
+   			*/
+
+   			if(memcmp(lbuffer, pbuffer, SHA_OUTPUT_LEN) == 0)
 			{
-				cout << "Password cracked - " << line << " - " << password << endl;
+				cout << "Password cracked\t- " << line << "\t- " << password << endl;
 			}
    		}
 
