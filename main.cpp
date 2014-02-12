@@ -32,7 +32,7 @@ struct Charset
   Charset(const string & character_str)
   {
     for (size_t i = 0; i < SIZE; ++i)
-      charset[i] = character_str[i % character_str.length()];
+      charset[i] = character_str[i % (character_str.length() + 1)];
   }
 
   
@@ -51,30 +51,6 @@ struct Charset
   
 
 
-// Generate the list of keys that will be used to start the chains in the rainbow table
-vector <string> generate_keys()
-{
-  vector <size_t> indices(CHARACTER_SET.size(), 0);
-  vector <string> keys(NUM_ROWS);
-
-  for (size_t i = 0; i < NUM_ROWS; ++i)
-  {
-    bool increment = true;
-
-    for (size_t j = 0; j < CHARACTER_SET.size(); ++j)
-    {
-      keys[i].push_back(CHARACTER_SET[indices[j]]);
-      if (increment)
-      {
-        increment  = indices[j] == CHARACTER_SET.size()-1;
-        indices[j] = increment ? 0 
-                               : indices[j] + 1;
-      }
-    }
-  }
-
-  return keys;
-}
 
     
 // This function reduces a 32 byte SHA hash to an 8 byte key
@@ -108,8 +84,6 @@ void SHA_CIPHER_FN(char digest[SHA_OUTPUT_LEN], const char * key)
 
 int main()
 {
-  vector <string> initial_keys = generate_keys();
-
   Rainbow_table <NUM_ROWS, CHAIN_LENGTH, redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN> 
-    rtable(initial_keys);
+    rtable(CHARACTER_SET);
 }
