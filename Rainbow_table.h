@@ -128,7 +128,7 @@ template
 >
 void Rainbow_table <NUM_ROWS, CHAIN_LENGTH, RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_table()
 {
-  const static size_t NUM_GENERATIONS = 10;
+  const static size_t NUM_GENERATIONS = 1;
   Rainbow_chain * start = table;
 
   // For each provided intial key, generate a chain

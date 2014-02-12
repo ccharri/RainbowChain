@@ -1,6 +1,6 @@
 # Compiler stuff
 CXX 		 = g++
-CXXFLAGS = -std=c++11 -Wall 
+CXXFLAGS = -std=c++11 -Wall -O3
 
 
 # The files we'll be compiling
@@ -15,9 +15,6 @@ UNAME = $(shell uname -s)
 
 ifneq ($(UNAME),Darwin)
   CXXFLAGS += -Werror
-  LIBS     += -lGL -lGLU -lglut
-else
-  LIBS     += -framework OpenGL -framework GLUT -lc
 endif
 
 
