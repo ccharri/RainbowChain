@@ -110,7 +110,7 @@ int main(int argc, char** argv)
    string password;
    while(dfile >> line)
    {
-   		// hexstr_to_bin(line, lbuffer);
+   		 hexstr_to_bin(line, lbuffer);
 
    		while(pfile >> password)
    		{
@@ -145,15 +145,20 @@ int main(int argc, char** argv)
    			cout << endl;
    			*/
 
-   			if(strncmp(line.c_str(), hex.c_str(), SHA_OUTPUT_LEN) == 0)
+   			if(memcmp(lbuffer, pbuffer, SHA_OUTPUT_LEN) == 0)
 			{
 				cout << "Password cracked\t- " << line << "\t- " << password << endl;
 			}
-			else if(line[0] == '0' && line[1] == '0' && line[2] == '0' && line[3] == '0' && line[4] == '0')
+			else if(lbuffer[0] == '\0' && lbuffer[1] == '\0' && ((lbuffer[2] & 0xF0) == '\0'))
 			{
-				if(strncmp(line.c_str() + 5, hex.c_str() + 5, SHA_OUTPUT_LEN -5) == 0)
+				char l = lbuffer[2] & 0x0F;
+				char r = pbuffer[2]& 0x0F;
+				if(memcmp(&l, &r, 1) == 0)
 				{
-					cout <<"'0'-prefixed Password cracked\t-" << line << "\t- " << password << endl;
+					if(memcmp(lbuffer + 3, pbuffer + 3, SHA_OUTPUT_LEN -3) == 0)
+					{
+						cout <<"'0'-prefixed Password cracked\t-" << line << "\t- " << password << endl;
+					}
 				}
 			}
    		}
