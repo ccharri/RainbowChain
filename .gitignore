@@ -15,3 +15,11 @@ rtable
 *.lai
 *.la
 *.a
+
+*.exe
+
+!Makefile
+!Makefile.exe
+
+combo_not.txt
+combo_not.zip
