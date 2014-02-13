@@ -171,7 +171,7 @@ int main(int argc, char** argv)
    while(dfile >> line)
    {
    		// comparePassword(line, passwords);
-   		thread(comparePassword, line, passwords);
+   		thread t(comparePassword, line, passwords);
    		g_num_database_entries++;
    }
 
