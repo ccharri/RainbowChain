@@ -127,6 +127,8 @@ void comparePassword(ifstream& ifile, const vector<string>& passwords)
 
 	g_file_mutex.unlock();
 
+	g_num_database_entries++;
+
 	char lbuffer[SHA_OUTPUT_LEN];
 	char pbuffer[SHA_OUTPUT_LEN];
 
