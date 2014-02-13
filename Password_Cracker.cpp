@@ -23,8 +23,10 @@ using std::atomic; using std::time_t; using std::time; using std::thread;
 
 
 const size_t SHA_OUTPUT_LEN = 20;
+const size_t THREAD_MAX = 1;
 
 atomic<int> g_num_cracked (0);
+atomic<int> g_thread_count (0);
 int g_num_database_entries = 0;
 time_t g_startTime;
 time_t g_endTime;
@@ -113,6 +115,8 @@ void loadPasswords(ifstream &pfile, vector<string> &passwords)
 
 void comparePassword(const string line, const vector<string>& passwords)
 {
+	g_thread_count++;
+
 	char lbuffer[SHA_OUTPUT_LEN];
 	char pbuffer[SHA_OUTPUT_LEN];
 
@@ -143,6 +147,8 @@ void comparePassword(const string line, const vector<string>& passwords)
 			}
 		}
 	}
+
+	g_thread_count--;
 }
 
 int main(int argc, char** argv)
@@ -151,6 +157,7 @@ int main(int argc, char** argv)
    string passFile;
    vector<string> passwords;
    char lbuffer[SHA_OUTPUT_LEN];
+   thread threads[THREAD_MAX];
  	
  	if(parseCommands(argc, argv, &dataFile, &passFile))
  	{
@@ -172,10 +179,12 @@ int main(int argc, char** argv)
    while(dfile >> line)
    {
    		// comparePassword(line, passwords);
-   		thread t(comparePassword, line, passwords);
-   		g_num_database_entries++;
+   		threads[(g_num_database_entries++) % THREAD_MAX] = thread(comparePassword, line, passwords);
 
-   		t.join();
+   		// if(g_thread_count > THREAD_MAX)
+   		// {
+   			threads[(g_num_database_entries) % THREAD_MAX].detach();
+   		// }
    }
 
    time(&g_endTime);
