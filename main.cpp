@@ -40,10 +40,10 @@ void SHA_CIPHER_FN(char digest[SHA_OUTPUT_LEN], const char * key)
 
 int main()
 {
-  Rainbow_table <NUM_ROWS, CHAIN_LENGTH, best_redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN> 
-    rtable(CHARACTER_SET);
+  Rainbow_table <best_redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN> 
+    rtable(NUM_ROWS, CHAIN_LENGTH, CHARACTER_SET);
 
-  const char gkey[MAX_KEY_LENGTH] = "jbm";
+  const char gkey[MAX_KEY_LENGTH+1] = "uhIKkA11";
   char gdigest[SHA_OUTPUT_LEN];
   SHA_CIPHER_FN(gdigest, gkey);
   cout << "Found matching password " << rtable.search(gdigest) << endl;
