@@ -1,6 +1,7 @@
 # Executables, swap files, etc
+*.txt
 .*.swp
-rtable
+hashbash
 
 # Compiled Object files
 *.slo

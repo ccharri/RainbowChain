@@ -8,6 +8,7 @@ HDRS = Rainbow_table.h
 SRCS = main.cpp
 OBJS = $(SRCS:.cpp=.o) $(SRCS_SLN:.cpp=.o)
 LIBS = -lssl -lcrypto
+EXE  = hashbash
 
 
 # Change flags to ignore the deprecated SHA functions if compiling
@@ -19,7 +20,7 @@ endif
 
 
 # Rules
-rtable: $(OBJS)
+$(EXE): $(OBJS) $(HDRS)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LIBS)
 
 %.o: %.cpp
@@ -27,4 +28,4 @@ rtable: $(OBJS)
 
 .PHONY: clean
 clean: 
-	-rm -f -r $(OBJS) *.o *~ *core* rtable 
+	-rm -f -r $(OBJS) *.o *~ *core* $(EXE)
