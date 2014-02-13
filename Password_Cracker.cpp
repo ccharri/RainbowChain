@@ -10,13 +10,14 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <vector>
 #include <ctype.h>
 
 #include <openssl/sha.h>   // SHA256
 
 const size_t SHA_OUTPUT_LEN = 20;
 
-using std::cout; using std::cin; using std::endl; using std::string; using std::ifstream;
+using std::cout; using std::cin; using std::endl; using std::string; using std::ifstream; using std::vector;
 
 class Exception{};
 
@@ -89,11 +90,20 @@ string binary_to_hexstr(char* binary, int len)
     return ss.str();
 }
 
+void loadPasswords(ifstream &pfile, vector<string> &passwords)
+{
+	string password;
+	while(pfile >> password)
+	{
+		passwords.push_back(password);
+	}
+}
 
 int main(int argc, char** argv)
 {
    string dataFile;
    string passFile;
+   vector<string> passwords;
    char pbuffer[SHA_OUTPUT_LEN];
    char lbuffer[SHA_OUTPUT_LEN];
  	
@@ -108,48 +118,22 @@ int main(int argc, char** argv)
    cout << "Opening file " << passFile << " as password." << endl;
    ifstream pfile(passFile);
 
+   loadPasswords(pfile, passwords);
+
    string line;
    string password;
    while(dfile >> line)
    {
    		 hexstr_to_bin(line, lbuffer);
 
-   		while(pfile >> password)
+   		for(auto it = passwords.begin(); it != passwords.end(); it++)
    		{
    			memset(&pbuffer, 0, SHA_OUTPUT_LEN);
-   			SHA1((const unsigned char *)password.c_str(), password.length(), (unsigned char *) pbuffer);
-
-   			
-   			string hex = binary_to_hexstr(pbuffer, SHA_OUTPUT_LEN);
-   			// cout << password << "\t- " << "\"";
-   			// for(int i = 0; i < hex.length(); ++i)
-   			// {
-   			// 	cout << hex[i];
-   			// }
-
-   			// cout << "\"" <<  endl;
-			
-
-			/*
-   			 cout << ">"; 
-   			 for(int i = 0; i < sizeof(lbuffer); ++i)
-   			 {
-   			 	cout << lbuffer[i];
-   			 }
-
-   			 cout << "\t- " << password << "\t- ";
-
-   			 for(int i = 0; i < sizeof(pbuffer); ++i)
-   			 {
-   			 	cout << pbuffer[i];
-   			 }
-
-   			cout << endl;
-   			*/
+   			SHA1((const unsigned char *)it->c_str(), it->length(), (unsigned char *) pbuffer);
 
    			if(memcmp(lbuffer, pbuffer, SHA_OUTPUT_LEN) == 0)
 			{
-				cout << "Password cracked\t- " << line << "\t- " << password << endl;
+				cout << "Password cracked\t- " << line << "\t- " << *it << endl;
 			}
 			else if(lbuffer[0] == '\0' && lbuffer[1] == '\0' && ((lbuffer[2] & 0xF0) == '\0'))
 			{
@@ -159,14 +143,11 @@ int main(int argc, char** argv)
 				{
 					if(memcmp(lbuffer + 3, pbuffer + 3, SHA_OUTPUT_LEN -3) == 0)
 					{
-						cout <<"'0'-prefixed Password cracked\t-" << line << "\t- " << password << endl;
+						cout <<"'0'-prefixed Password cracked\t-" << line << "\t- " << *it << endl;
 					}
 				}
 			}
    		}
-
-   		pfile.clear();
-		pfile.seekg(0, std::ios::beg);
    }
 
    cout << "Finished" << endl;
