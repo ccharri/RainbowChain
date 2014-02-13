@@ -15,8 +15,8 @@ using std::cout; using std::endl;
 // SHA Rainbow Table params
 const size_t MAX_KEY_LENGTH = 8;
 const size_t SHA_OUTPUT_LEN = 20;
-const size_t NUM_ROWS       = 10;
-const size_t CHAIN_LENGTH   = 10;
+const size_t NUM_ROWS       = 10000;
+const size_t CHAIN_LENGTH   = 1000;
 const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 
@@ -40,11 +40,19 @@ void SHA_CIPHER_FN(char digest[SHA_OUTPUT_LEN], const char * key)
 
 int main()
 {
+  // Construct the rainbow table
   Rainbow_table <best_redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN> 
     rtable(NUM_ROWS, CHAIN_LENGTH, CHARACTER_SET);
 
-  const char gkey[MAX_KEY_LENGTH+1] = "uhIKkA11";
-  char gdigest[SHA_OUTPUT_LEN];
-  SHA_CIPHER_FN(gdigest, gkey);
-  cout << "Found matching password " << rtable.search(gdigest) << endl;
+  // Hash a key and search to see if its in the table
+  const char gkey[MAX_KEY_LENGTH+1] = "ZgPPambm";
+  char digest[SHA_OUTPUT_LEN];
+  SHA_CIPHER_FN(digest, gkey);
+
+  string password = rtable.search(digest);
+
+  if (password.length())
+    cout << "Found matching password " << password << endl;
+  else
+    cout << "Password not found" << endl;
 }

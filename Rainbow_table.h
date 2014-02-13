@@ -226,10 +226,10 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
     char hashbuf[CIPHER_OUTPUT_LEN];
     CIPHER_FN(hashbuf, endpoint);
     RED_FN(endpoint, hashbuf, chain_link_index + i);
-    std::cout << " -> ";  print_key(endpoint);
+    //std::cout << " -> ";  print_key(endpoint);
   }
 
-  std::cout << std::endl;
+  //std::cout << std::endl;
 }
   
   
