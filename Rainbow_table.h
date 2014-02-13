@@ -18,6 +18,8 @@
 typedef void (*reduction_function_t)(char * key, const char * cipher, size_t step);
 typedef void (*cipher_function_t)(char * cipher, const char * key);
 
+#include <set>
+std::set <std::string> unique_keys;
 
 // The rainbow table structure
 template 
@@ -42,6 +44,13 @@ public:
   // key list and the list of reduction functions
   Rainbow_table(size_t num_rows_in, size_t chain_length_in, const std::string & character_set); 
 
+  // Destructor
+  ~Rainbow_table()
+  {
+    delete [] table;
+    std::cout << "There are " << unique_keys.size() << " unique keys" << std::endl;
+  }
+
 
   // Searches the table for the input hash, returning the corresponding
   // password if found, null otherwise
@@ -52,9 +61,9 @@ public:
 private:
 
   // Default values for the table
-   static const size_t      RAINBOW_DEFAULT_ROWS    = 20;
-   static const size_t      RAINBOW_DEFAULT_CHAIN   = 10;
-   static const std::string RAINBOW_DEFAULT_CHARSET;
+  static const size_t RAINBOW_DEFAULT_ROWS  = 20;
+  static const size_t RAINBOW_DEFAULT_CHAIN = 10;
+  static const std::string RAINBOW_DEFAULT_CHARSET;
 
 
   // A chain in the table, consisting of a starting and ending point
@@ -218,6 +227,7 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
 {
   // Reduce the hash to a starting key
   RED_FN(endpoint, hash, chain_link_index);
+  unique_keys.insert(std::string(endpoint, endpoint + strnlen(endpoint, MAX_KEY_LEN)));
   
   // From this link to the end of the chain
   for (size_t i = 1; i < chain_length; ++i)
@@ -226,6 +236,7 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
     char hashbuf[CIPHER_OUTPUT_LEN];
     CIPHER_FN(hashbuf, endpoint);
     RED_FN(endpoint, hashbuf, chain_link_index + i);
+    unique_keys.insert(std::string(endpoint, endpoint + strnlen(endpoint, MAX_KEY_LEN)));
     //std::cout << " -> ";  print_key(endpoint);
   }
 
