@@ -111,11 +111,12 @@ void loadPasswords(ifstream &pfile, vector<string> &passwords)
 	cout << "Loaded " << passwords.size() << " passwords." << endl;
 }
 
-void comparePassword(const string& line, const vector<string>& passwords)
+void comparePassword(const string line, const vector<string>& passwords)
 {
 	char lbuffer[SHA_OUTPUT_LEN];
 	char pbuffer[SHA_OUTPUT_LEN];
 
+	memset(&lbuffer, 0, SHA_OUTPUT_LEN);
 	hexstr_to_bin(line, lbuffer);
 
 	for(auto it = passwords.begin(); it != passwords.end(); it++)
