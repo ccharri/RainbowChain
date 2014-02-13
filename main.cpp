@@ -47,8 +47,7 @@ void SHA_CIPHER_FN(char digest[SHA_OUTPUT_LEN], const char * key)
 
 bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME])
 {
-	char c;
-
+	char c; 
   while ((c = getopt (argc, argv, "f:")) != -1)
     switch (c)
     {
