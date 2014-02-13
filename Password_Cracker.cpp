@@ -174,6 +174,8 @@ int main(int argc, char** argv)
    		// comparePassword(line, passwords);
    		thread t(comparePassword, line, passwords);
    		g_num_database_entries++;
+
+   		t.join();
    }
 
    time(&g_endTime);
