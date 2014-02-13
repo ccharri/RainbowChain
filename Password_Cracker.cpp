@@ -14,19 +14,21 @@
 #include <ctype.h>
 #include <thread>
 #include <atomic>
+#include <mutex>
 #include <time.h>
 
 #include <openssl/sha.h>   // SHA256
 
 using std::cout; using std::cin; using std::endl; using std::string; using std::ifstream; using std::vector;
-using std::atomic; using std::time_t; using std::time; using std::thread;
+using std::atomic; using std::time_t; using std::time; using std::thread; using std::mutex;
 
 
 const size_t SHA_OUTPUT_LEN = 20;
-const size_t THREAD_MAX = 1;
+const size_t THREAD_MAX = 8;
 
 atomic<int> g_num_cracked (0);
-atomic<int> g_thread_count (0);
+mutex g_file_mutex;
+
 int g_num_database_entries = 0;
 time_t g_startTime;
 time_t g_endTime;
@@ -113,9 +115,17 @@ void loadPasswords(ifstream &pfile, vector<string> &passwords)
 	cout << "Loaded " << passwords.size() << " passwords." << endl;
 }
 
-void comparePassword(const string line, const vector<string>& passwords)
+void comparePassword(ifstream& ifile, const vector<string>& passwords)
 {
-	g_thread_count++;
+	g_file_mutex.lock();
+
+	string line;
+	if(!(ifile >> line)){
+		g_file_mutex.unlock();
+		return;
+	}
+
+	g_file_mutex.unlock();
 
 	char lbuffer[SHA_OUTPUT_LEN];
 	char pbuffer[SHA_OUTPUT_LEN];
@@ -147,8 +157,19 @@ void comparePassword(const string line, const vector<string>& passwords)
 			}
 		}
 	}
+}
 
-	g_thread_count--;
+void fileThread(ifstream& dfile, const vector<string>& passwords)
+{
+	g_file_mutex.lock();
+	while(dfile.good())
+	{
+		g_file_mutex.unlock();
+		thread t(comparePassword, std::ref(dfile), passwords);
+		t.join();
+		g_file_mutex.lock();
+	}
+	g_file_mutex.unlock();
 }
 
 int main(int argc, char** argv)
@@ -157,7 +178,7 @@ int main(int argc, char** argv)
    string passFile;
    vector<string> passwords;
    char lbuffer[SHA_OUTPUT_LEN];
-   thread threads[THREAD_MAX];
+   vector<thread> threads;
  	
  	if(parseCommands(argc, argv, &dataFile, &passFile))
  	{
@@ -174,18 +195,28 @@ int main(int argc, char** argv)
 
    time(&g_startTime);
 
-   string line;
-   string password;
-   while(dfile >> line)
+   for(int i = 0; i < THREAD_MAX; ++i)
    {
-   		// comparePassword(line, passwords);
-   		threads[(g_num_database_entries++) % THREAD_MAX] = thread(comparePassword, line, passwords);
-
-   		// if(g_thread_count > THREAD_MAX)
-   		// {
-   			threads[(g_num_database_entries) % THREAD_MAX].detach();
-   		// }
+   		threads.emplace_back(fileThread, std::ref(dfile), passwords);
    }
+
+   for(auto& thread : threads)
+   {
+   		thread.join();
+   }
+
+   // string line;
+   // string password;
+   // while(dfile >> line)
+   // {
+   // 		// comparePassword(line, passwords);
+   // 		threads[(g_num_database_entries++) % THREAD_MAX] = thread(comparePassword, line, passwords);
+
+   // 		// if(g_thread_count > THREAD_MAX)
+   // 		// {
+   // 			threads[(g_num_database_entries) % THREAD_MAX].detach();
+   // 		// }
+   // }
 
    time(&g_endTime);
 
