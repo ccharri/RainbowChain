@@ -23,31 +23,17 @@ using std::ifstream; using std::stringstream;
 const size_t MAX_KEY_LENGTH = 8;
 const size_t SHA_OUTPUT_LEN = 20;
 const size_t MD5_OUTPUT_LEN = 16;
-const size_t NUM_ROWS       = 10;
-const size_t CHAIN_LENGTH   = 200;
+const size_t NUM_ROWS       = 10000;
+const size_t CHAIN_LENGTH   = 2000;
 const size_t MAX_FNAME      = 33;
 const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 
-
 void best_redux_func(char key[MAX_KEY_LENGTH], const char * digest, size_t step)
 {
-  MD5_CTX ctx; 
-  MD5_Init(&ctx);
-  MD5_Update(&ctx, digest, SHA_OUTPUT_LEN);
-  MD5_Update(&ctx, &step, sizeof(size_t));
-  
-  char md5_digest[MD5_OUTPUT_LEN];
-  MD5_Final((unsigned char *) md5_digest, &ctx);
-
-  size_t half_md5_size = MD5_OUTPUT_LEN / 2;
-
-  for (size_t i = 0; i < half_md5_size; ++i)
-    md5_digest[i] ^= md5_digest[i + half_md5_size];
-
   for (size_t i = 0; i < MAX_KEY_LENGTH; ++i)
   {
-    int acc = (step + md5_digest[i]) % (CHARACTER_SET.size() + 1); 
+    size_t acc = (step + digest[i]) % (CHARACTER_SET.size()); 
     key[i] = CHARACTER_SET[acc];
   }
 }
@@ -147,7 +133,7 @@ void crack_SHA1(istream & hashstream)
   Rainbow_table <best_redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN> 
     rtable(NUM_ROWS, CHAIN_LENGTH, CHARACTER_SET);
 
-  //crack_hashes(rtable, hashstream);
+  crack_hashes(rtable, hashstream);
 }
   
 
