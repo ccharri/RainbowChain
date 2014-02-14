@@ -28,22 +28,22 @@
 #endif
 
 
-using std::vector; using std::string; using std::hex;
+using std::vector; using std::string; using std::cerr;
 using std::cout; using std::endl; using std::cin;
 using std::istream_iterator; using std::istream;
 using std::ifstream; using std::stringstream;
 using std::thread; using std::mutex; using std::atomic;
-using std::vector;
 using std::time_t; using std::time;
 
+
 // SHA Rainbow Table params
-const size_t MAX_KEY_LENGTH = 8;
+const size_t MAX_KEY_LENGTH = 7;
 const size_t SHA_OUTPUT_LEN = 20;
 const size_t MD5_OUTPUT_LEN = 16;
-const size_t NUM_ROWS       = 10000000;
+const size_t NUM_ROWS       = 10000;
 const size_t CHAIN_LENGTH   = 4000;
 const size_t MAX_FNAME      = 33;
-const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 atomic<long> g_num_cracked(0);
 atomic<long> g_num_entries(0);
@@ -75,7 +75,7 @@ bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME], size_t& num
       case 'f':
         if (strnlen(optarg, MAX_FNAME+1) > MAX_FNAME)
         {
-          cout << "Hash file name too long" << endl;
+          cerr << "Hash file name too long" << endl;
           return true;
         }
 
@@ -96,7 +96,7 @@ bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME], size_t& num
         break;
       }
       default:
-     	  cout << "Invalid arguments" << endl;
+     	  cerr << "Invalid arguments" << endl;
         return true;
     }
 
