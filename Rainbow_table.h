@@ -237,10 +237,10 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
     CIPHER_FN(hashbuf, endpoint);
     RED_FN(endpoint, hashbuf, chain_link_index + i);
     unique_keys.insert(std::string(endpoint, endpoint + strnlen(endpoint, MAX_KEY_LEN)));
-    //std::cout << " -> ";  print_key(endpoint);
+    std::cout << " -> ";  print_key(endpoint);
   }
 
-  //std::cout << std::endl;
+  std::cout << std::endl;
 }
   
   
@@ -266,7 +266,7 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
 
   // Encipher the key and generate from here to end of chain from
   // first digest
-  //std::cout << "Generating from key "; print_key(initial_key);
+  std::cout << "Generating from key "; print_key(initial_key);
   char hashbuf[CIPHER_OUTPUT_LEN];
   CIPHER_FN(hashbuf, initial_key);
   generate_chain_from_hash(hashbuf, 0, chain_length, endpoint);
