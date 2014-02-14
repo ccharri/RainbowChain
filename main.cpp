@@ -40,7 +40,7 @@ using std::time_t; using std::time;
 const size_t MAX_KEY_LENGTH = 7;
 const size_t SHA_OUTPUT_LEN = 20;
 const size_t MD5_OUTPUT_LEN = 16;
-const size_t NUM_ROWS       = 10000;
+const size_t NUM_ROWS       = 20000000;
 const size_t CHAIN_LENGTH   = 4000;
 const size_t MAX_FNAME      = 33;
 const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -199,7 +199,7 @@ void crack_SHA1(istream & hashstream, int num_threads)
 
   cout << "Cracking Finished.  Total time = " << crack_end - crack_start << " seconds." << endl;
   cout << g_num_cracked << " cracked out of " << g_num_entries << " total entries." << endl;
-  cout << ((double)g_num_cracked)/((double)g_num_entries) << "% cracked." << endl;
+  cout << ((double)g_num_cracked)/((double)g_num_entries)*100.d << "% cracked." << endl;
 
 }
   
