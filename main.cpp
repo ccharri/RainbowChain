@@ -56,7 +56,7 @@ void SHA_CIPHER_FN(char digest[SHA_OUTPUT_LEN], const char * key)
 }
 
 
-bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME], int& num_theads)
+bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME], size_t& num_threads)
 {
 	char c; 
   while ((c = getopt (argc, argv, "f:n:")) != -1)
@@ -74,13 +74,17 @@ bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME], int& num_th
 
         break;
       case 'n':
-        num_threads = atoi(optarg);
-        if(num_threads <= 0)
+      {
+        int arg = atoi(optarg);
+        if(arg <= 0)
         {
           cout << "Invalid number of threads" << endl;
           return true;
         }
+        num_threads = arg;
+
         break;
+      }
       default:
      	  cout << "Invalid arguments" << endl;
         return true;
@@ -173,7 +177,7 @@ void crack_SHA1(istream & hashstream, int num_threads)
 
   for(int i = 0; i < num_threads; ++i)
   {
-    threads.emplace_back(crack_hashes, std::ref(rtable), std::ref(hashstream));
+    threads.emplace_back(crack_hashes<best_redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN>, std::ref(rtable), std::ref(hashstream));
   }
 
   for(thread& t : threads)
@@ -185,7 +189,7 @@ void crack_SHA1(istream & hashstream, int num_threads)
 
   cout << "Cracking Finished.  Total time = " << crack_end - crack_start << " seconds." << endl;
   cout << g_num_cracked << " cracked out of " << g_num_entries << " total entries." << endl;
-  cout << ((double)g_num_cracked)/((double)g_num_entries) << "% cracked.") << endl;
+  cout << ((double)g_num_cracked)/((double)g_num_entries) << "% cracked." << endl;
 
 }
   
@@ -195,8 +199,8 @@ int main(int argc, char ** argv)
 {
   // Read the command line args
   char filename[MAX_FNAME] = { '\0' }; 
-  size_t num_theads = 1;
- 	if(parseCommands(argc, argv, filename, num_theads))
+  size_t num_threads = 1;
+ 	if(parseCommands(argc, argv, filename, num_threads))
  		return 1;
 
   // If no filename provided, read from stdin
