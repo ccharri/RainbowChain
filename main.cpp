@@ -40,8 +40,8 @@ using std::time_t; using std::time;
 const size_t MAX_KEY_LENGTH = 8;
 const size_t SHA_OUTPUT_LEN = 20;
 const size_t MD5_OUTPUT_LEN = 16;
-const size_t NUM_ROWS       = 10000;
-const size_t CHAIN_LENGTH   = 2000;
+const size_t NUM_ROWS       = 10000000;
+const size_t CHAIN_LENGTH   = 4000;
 const size_t MAX_FNAME      = 33;
 const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
