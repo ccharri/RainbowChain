@@ -3,6 +3,9 @@
 // EECS 588
 // N_number.h
 
+#ifndef BASE_N_NUMBER_
+#define BASE_N_NUMBER_
+
 #include <cstdlib> // size_t
 
 
@@ -80,3 +83,6 @@ private:
   size_t m_base;            // The base of the number
   size_t m_rep[NUM_PLACES]; // The representation of each "digit" of the number
 };
+
+
+#endif // BASE_N_NUMBER_
