@@ -11,6 +11,8 @@
 #include <sstream>
 #include <fstream>
 #include <ctype.h>
+#include <cstdlib>
+#include <cstring>
 
 #include <openssl/sha.h>   // SHA256
 
@@ -107,6 +109,8 @@ int main(int argc, char** argv)
 
    cout << "Opening file " << passFile << " as password." << endl;
    ifstream pfile(passFile);
+
+   strnlen((const char *)dataFile.c_str());
 
    string line;
    string password;

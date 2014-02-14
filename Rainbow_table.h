@@ -14,12 +14,22 @@
 #include <iostream>
 
 
+#ifdef __CYGWIN__
+#include <getopt.h>
+#include <cstring>
+#include <stdio.h>
+
+#include <algorithm>
+#define strnlen(A,B) std::min(strlen(A), B)
+#endif
+
 // Reduction and Cipher function types used by the table
 typedef void (*reduction_function_t)(char * key, const char * cipher, size_t step);
 typedef void (*cipher_function_t)(char * cipher, const char * key);
 
 #include <set>
 std::set <std::string> unique_keys;
+
 
 // The rainbow table structure
 template 

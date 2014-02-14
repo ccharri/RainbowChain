@@ -18,6 +18,16 @@
 #include <vector>
 #include <time.h>
 
+#ifdef __CYGWIN__
+#include <getopt.h>
+#include <cstring>
+#include <stdio.h>
+
+#include <algorithm>
+#define strnlen(A,B) std::min(strlen(A), B)
+#endif
+
+
 using std::vector; using std::string; using std::hex;
 using std::cout; using std::endl; using std::cin;
 using std::istream_iterator; using std::istream;
