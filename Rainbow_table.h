@@ -6,6 +6,8 @@
 #ifndef RAINBOW_TABLE_H_
 #define RAINBOW_TABLE_H_
 
+#include "Base_n_number.h"
+#include <thread>
 #include <vector>
 #include <algorithm>
 #include <functional>
@@ -62,8 +64,9 @@ public:
 private:
 
   // Default values for the table
-  static const size_t RAINBOW_DEFAULT_ROWS  = 20;
-  static const size_t RAINBOW_DEFAULT_CHAIN = 10;
+  static const size_t RAINBOW_DEFAULT_ROWS    = 20;
+  static const size_t RAINBOW_DEFAULT_CHAIN   = 10;
+  static const size_t RAINBOW_DEFAULT_THREADS = 8;
   static const std::string RAINBOW_DEFAULT_CHARSET;
 
 
@@ -97,6 +100,9 @@ private:
   void generate_table();
 
 
+  void generate_table_range(size_t start_idx, size_t rows_per_thread, Base_n_number <MAX_KEY_LEN> keygen);
+
+
   // Generates the table from the input row down
   void generate_table_from(Rainbow_chain * starting_row);
 
@@ -116,18 +122,22 @@ private:
 
 
   // Writes the next key to be generated into the slot at input table index
-  void write_next_key(Rainbow_chain * starting_row);
+  void write_key(const Base_n_number <MAX_KEY_LEN> & keygen, size_t idx);
+
+
+  void dispatch_generator_thread(size_t start_idx, size_t rows_per_thread);
 
 
 // Instance variables
 private:
 
-  Rainbow_chain *      table;           // The table data store
-  std::vector <size_t> indices;         // Indices for returning keys
-  const std::string    character_set;   // The set of characters we're exploring
-  const size_t         num_rows;        // Number of rows in the table
-  const size_t         chain_length;    // Length of the chains, number of generations of hash 
-                                        // reduction cycles
+  Rainbow_chain *      table;         // The table data store
+  const std::string    character_set; // The set of characters we're exploring
+  size_t               next_key;      // The next key to be used for an endpoint
+  const size_t         num_rows;      // Number of rows in the table
+  const size_t         chain_length;  // Length of the chains, number of generations of hash 
+                                      // reduction cycles
+  std::vector <std::thread> threads;
 };
 
 
@@ -159,8 +169,8 @@ Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::Rainbow_table
   size_t              chain_length_in,
   const std::string & character_set_in
 ) 
-: indices(MAX_KEY_LEN, 0), character_set(character_set_in),
-  num_rows(num_rows_in), chain_length(chain_length_in) 
+: character_set(character_set_in), next_key(0), num_rows(num_rows_in), 
+  chain_length(chain_length_in) 
 {
   generate_table();
 }
@@ -182,7 +192,7 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
   {
     auto start_time = std::chrono::system_clock::now();
 
-    std::cout << "Running generation " << i << std::endl;
+    //std::cout << "Running generation " << i << std::endl;
     generate_table_from(start);
     std::sort(table, table + num_rows);
     start = std::unique(table, table + num_rows);
@@ -209,10 +219,59 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
   Rainbow_chain * starting_row
 )
 {
-  for (Rainbow_chain * row = starting_row; row < table + num_rows; ++row)
+  size_t start_idx       = starting_row - table;
+  size_t generation_rows = num_rows - start_idx;
+  size_t rows_per_thread = generation_rows / RAINBOW_DEFAULT_THREADS;
+
+  // Dispatch threads to generate the table
+  for (size_t i = 0; i < RAINBOW_DEFAULT_THREADS-1; ++i, start_idx += rows_per_thread)
+    dispatch_generator_thread(start_idx, rows_per_thread);
+
+  dispatch_generator_thread(start_idx, num_rows - start_idx);
+
+  // Join all of the threads
+  for (std::thread & t : threads)
+    t.join();
+}
+
+
+template 
+<
+  reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::dispatch_generator_thread(
+  size_t start_idx,
+  size_t rows_per_thread
+)
+{
+  Base_n_number <MAX_KEY_LEN> keygen(character_set.length());
+  keygen = next_key;
+  next_key += rows_per_thread;
+
+  //std::cout << "Generating table range starting at " << start_idx << " size " << rows_per_thread << std::endl;
+  //std::cout << "First key is "; for (size_t i = 0; i < MAX_KEY_LEN; ++i) std::cout << keygen[i] << ' ';
+  //std::cout << std::endl;
+  threads.emplace_back(&Rainbow_table::generate_table_range, this, start_idx, rows_per_thread, keygen);
+}
+
+
+template 
+<
+  reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_table_range(
+  size_t start_idx,
+  size_t rows_per_thread,
+  Base_n_number <MAX_KEY_LEN> keygen
+)
+{
+  for (size_t i = start_idx; i < start_idx + rows_per_thread; ++i)
   {
-    write_next_key(row);
-    generate_chain_from_key(row->start, chain_length, row->end);
+    write_key(keygen, i);
+    generate_chain_from_key(table[i].start, chain_length, table[i].end);
+    keygen.increment();
   }
 }
 
@@ -279,31 +338,6 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
 }
 
 
-// Writes the next key to be generated into the slot at input table index
-template 
-<
-  reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
-  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
->
-void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::write_next_key(
-  Rainbow_chain * row_ptr
-)
-{
-  bool increment = true;
-
-  for (size_t i = 0; i < MAX_KEY_LEN; ++i)
-  {
-    row_ptr->start[i] = character_set[indices[i]];
-
-    if (increment)
-    {
-      increment  = (indices[i] == character_set.size() - 1);
-      indices[i] = increment ? 0 
-                             : indices[i] + 1;
-    }
-  }
-}
-
 template 
 <
   reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
@@ -354,5 +388,23 @@ std::string Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::s
 
   return "";
 }
+
+
+template 
+<
+  reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::write_key(
+  const Base_n_number <MAX_KEY_LEN> & num,
+  size_t                              index
+)
+{
+  for (size_t i = 0; i < MAX_KEY_LEN; ++i)
+    table[index].start[i] = character_set[num[i]];
+}
+  
+
+
 
 #endif
