@@ -167,8 +167,7 @@ void fileThread(ifstream& dfile, const vector<string>& passwords)
 	while(dfile.good())
 	{
 		g_file_mutex.unlock();
-		thread t(comparePassword, std::ref(dfile), passwords);
-		t.join();
+		comparePassword(dfile, passwords);
 		g_file_mutex.lock();
 	}
 	g_file_mutex.unlock();
