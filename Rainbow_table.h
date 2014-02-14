@@ -12,6 +12,7 @@
 #include <cstring>
 #include <string>
 #include <iostream>
+#include <chrono>
 
 
 // Reduction and Cipher function types used by the table
@@ -48,7 +49,7 @@ public:
   ~Rainbow_table()
   {
     delete [] table;
-    std::cout << "There are " << unique_keys.size() << " unique keys" << std::endl;
+    //std::cout << "There are " << unique_keys.size() << " unique keys" << std::endl;
   }
 
 
@@ -179,16 +180,21 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
   // For each provided intial key, generate a chain
   for (size_t i = 0; i < NUM_GENERATIONS && size_t(start - table) < num_rows; ++i)
   {
+    auto start_time = std::chrono::system_clock::now();
+
     std::cout << "Running generation " << i << std::endl;
     generate_table_from(start);
     std::sort(table, table + num_rows);
     start = std::unique(table, table + num_rows);
+
+    auto elapsed = std::chrono::system_clock::now() - start_time;
+    std::cout << "Time: " << (std::chrono::duration_cast <std::chrono::milliseconds>(elapsed).count() / 1000.) << std::endl;
     std::cout << "There are now " << (start - table) << " unique endpoints" << std::endl;
   }
 
   for (Rainbow_chain * row = table; row < start; ++row)
   {
-    std::cout << "Row " << row - table << ": "; print_key(row->start); std::cout << " -> "; print_key(row->end); std::cout << std::endl;
+    //std::cout << "Row " << row - table << ": "; print_key(row->start); std::cout << " -> "; print_key(row->end); std::cout << std::endl;
   }
 }
 
@@ -227,7 +233,7 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
 {
   // Reduce the hash to a starting key
   RED_FN(endpoint, hash, chain_link_index);
-  unique_keys.insert(std::string(endpoint, endpoint + strnlen(endpoint, MAX_KEY_LEN)));
+  //unique_keys.insert(std::string(endpoint, endpoint + strnlen(endpoint, MAX_KEY_LEN)));
   
   // From this link to the end of the chain
   for (size_t i = 1; i < chain_length; ++i)
@@ -236,7 +242,7 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
     char hashbuf[CIPHER_OUTPUT_LEN];
     CIPHER_FN(hashbuf, endpoint);
     RED_FN(endpoint, hashbuf, chain_link_index + i);
-    unique_keys.insert(std::string(endpoint, endpoint + strnlen(endpoint, MAX_KEY_LEN)));
+    //unique_keys.insert(std::string(endpoint, endpoint + strnlen(endpoint, MAX_KEY_LEN)));
     //std::cout << " -> ";  print_key(endpoint);
   }
 
