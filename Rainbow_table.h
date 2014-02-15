@@ -64,7 +64,7 @@ private:
   // Default values for the table
   static const size_t RAINBOW_DEFAULT_ROWS    = 20;
   static const size_t RAINBOW_DEFAULT_CHAIN   = 10;
-  static const size_t RAINBOW_DEFAULT_THREADS = 8;
+  static const size_t RAINBOW_DEFAULT_THREADS = 2;
   static const size_t RAINBOW_NUM_GENERATIONS = 1;
 
   // The default character set used
@@ -227,8 +227,8 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
   dispatch_generator_thread(start_idx, num_rows - start_idx);
 
   // Join all of the threads
-  for (std::thread & t : threads)
-    t.join();
+  std::for_each(threads.begin(), threads.end(), mem_fn(&std::thread::join));
+  threads.clear();
 }
 
 
