@@ -38,17 +38,39 @@ using std::time_t; using std::time;
 // SHA Rainbow Table params
 const size_t MAX_KEY_LENGTH = 7;
 const size_t SHA_OUTPUT_LEN = 20;
-const size_t MD5_OUTPUT_LEN = 16;
-const size_t NUM_ROWS       = 250000000;
-const size_t CHAIN_LENGTH   = 4000;
-const size_t MAX_FNAME      = 33;
-const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 atomic<long> g_num_cracked(0);
 atomic<long> g_num_entries(0);
 mutex g_file_lock;
 
-void best_redux_func(char key[MAX_KEY_LENGTH], const char * digest, size_t step)
+// The cipher function we're trying to reverse
+void SHA1_cipher_func(char digest[SHA_OUTPUT_LEN], const char * key)
+{
+  SHA1((const unsigned char *) key, MAX_KEY_LENGTH, (unsigned char *) digest);
+}
+
+
+//void SHA1_redux_func(char key[MAX_KEY_LENGTH], const char * digest, size_t step)
+//{
+//  uint16_t   step16     = (uint16_t) step;
+//  uint16_t * digest_ptr = (uint16_t *) digest;
+//
+//  size_t half = MAX_KEY_LENGTH / 2;
+//
+//  for (size_t i = 0; i < half; ++i)
+//    digest_ptr[i] ^= step16;
+//
+//  for (size_t i = 0; i < MAX_KEY_LENGTH ; ++i)
+//  {
+//    char digest_mash = digest[i] ^ digest[i + MAX_KEY_LENGTH];
+//    key[i]           = CHARACTER_SET[digest_mash % (CHARACTER_SET.size())];
+//  }
+//}
+
+
+// Reduces a SHA1 hash to a MAX_KEY_LENGTH key
+void SHA1_redux_func(char key[MAX_KEY_LENGTH], const char * digest, size_t step)
 {
   for (size_t i = 0; i < MAX_KEY_LENGTH; ++i)
   {
@@ -58,17 +80,24 @@ void best_redux_func(char key[MAX_KEY_LENGTH], const char * digest, size_t step)
 }
 
 
-// The cipher function we're trying to reverse
-void SHA_CIPHER_FN(char digest[SHA_OUTPUT_LEN], const char * key)
-{
-  SHA1((const unsigned char *) key, strnlen(key, MAX_KEY_LENGTH), (unsigned char *) digest);
-}
+// The SHA1 Rainbow table type
+typedef Rainbow_table <SHA1_redux_func, MAX_KEY_LENGTH, SHA1_cipher_func, SHA_OUTPUT_LEN> 
+  SHA1_Rainbow_table_t;
 
 
-bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME], size_t& num_threads)
+// Other Rainbow table and various other parameters
+const size_t DEFAULT_NUM_ROWS     = 10;
+const size_t DEFAULT_CHAIN_LENGTH = 10;
+const size_t MAX_FNAME            = 33;
+
+
+bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME],
+                   size_t & num_rows, size_t & chain_length)
 {
 	char c; 
-  while ((c = getopt (argc, argv, "f:n:")) != -1)
+  size_t chain, rows;
+
+  while ((c = getopt (argc, argv, "f:r:c:")) != -1)
     switch (c)
     {
       case 'f':
@@ -82,18 +111,19 @@ bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME], size_t& num
           strncpy(filename, optarg, MAX_FNAME);
 
         break;
-      case 'n':
-      {
-        int arg = atoi(optarg);
-        if(arg <= 0)
-        {
-          cout << "Invalid number of threads" << endl;
-          return true;
-        }
-        num_threads = arg;
+      case 'c':
+        chain = atoi(optarg);
+        if (chain > 0)
+          chain_length = chain;
 
         break;
-      }
+
+      case 'r':
+        rows = atoi(optarg);
+        if (rows > 0)
+          num_rows = rows;
+
+        break;
       default:
      	  cerr << "Invalid arguments" << endl;
         return true;
@@ -167,39 +197,11 @@ void crack_hashes(Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_L
 
 // Constructs a SHA1 rainbow table, then reads in hashes in ascii format
 // from the input stream and tries to crack them one by one
-void crack_SHA1(istream & hashstream, int num_threads)
+void crack_SHA1(istream & hashstream, size_t num_rows, size_t chain_length)
 {
-  time_t table_start, table_end, crack_start, crack_end;
-
-  time(&table_start);
   // Construct the rainbow table
-  Rainbow_table <best_redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN> 
-    rtable(NUM_ROWS, CHAIN_LENGTH, CHARACTER_SET);
-
-  time(&table_end);
-
-  cout << "Table constructed in " << table_end - table_start << " seconds." << endl;
-
-  time(&crack_start);
-
-  vector<thread> threads;
-
-  for(int i = 0; i < num_threads; ++i)
-  {
-    threads.emplace_back(crack_hashes<best_redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN>, std::ref(rtable), std::ref(hashstream));
-  }
-
-  for(thread& t : threads)
-  {
-    t.join();
-  }
-
-  time(&crack_end);
-
-  cout << "Cracking Finished.  Total time = " << crack_end - crack_start << " seconds." << endl;
-  cout << g_num_cracked << " cracked out of " << g_num_entries << " total entries." << endl;
-  cout << ((double)g_num_cracked)/((double)g_num_entries)*100.d << "% cracked." << endl;
-
+  SHA1_Rainbow_table_t rtable(num_rows, chain_length, CHARACTER_SET);
+  crack_hashes(rtable, hashstream);
 }
   
 
@@ -208,17 +210,19 @@ int main(int argc, char ** argv)
 {
   // Read the command line args
   char filename[MAX_FNAME] = { '\0' }; 
-  size_t num_threads = 1;
- 	if(parseCommands(argc, argv, filename, num_threads))
+  size_t num_rows     = DEFAULT_NUM_ROWS; 
+  size_t chain_length = DEFAULT_CHAIN_LENGTH; 
+
+ 	if(parseCommands(argc, argv, filename, num_rows, chain_length))
  		return 1;
 
   // If no filename provided, read from stdin
   if (*filename)
   {
     ifstream hashfstr(filename);
-    crack_SHA1(hashfstr, num_threads);
+    crack_SHA1(hashfstr, num_rows, chain_length);
   }
 
   else
-    crack_SHA1(cin, num_threads);
+    crack_SHA1(cin, num_rows, chain_length);
 }
