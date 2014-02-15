@@ -14,6 +14,7 @@
 #include <cstring>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <chrono>
 
 
@@ -187,6 +188,30 @@ Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::Rainbow_table
   chain_length(chain_length_in) 
 {
   generate_table();
+
+  std::ofstream rfile("rainbow_table.txt");
+  rfile << num_rows << std::endl;
+
+  Rainbow_chain* table_ptr = table;
+  for(size_t i = 0; i < num_rows; ++i)
+  {
+    for(int j = 0; j < MAX_KEY_LEN && table_ptr->start[j]; j++)
+    {
+      rfile << table_ptr->start[j];
+    }
+     rfile << " ";
+     for(int j = 0; j < MAX_KEY_LEN && table_ptr->end[j]; j++)
+     {
+      rfile << table_ptr->end[j];
+     }
+     rfile << std::endl;
+
+    table_ptr++;
+  }
+
+
+
+  rfile.close();
 }
 
 
