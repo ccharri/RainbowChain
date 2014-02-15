@@ -16,6 +16,11 @@
 #include <iostream>
 #include <chrono>
 
+void print_key(const char * key)
+{
+  for (int i = 0; i < 7; ++i)
+    std::cout << key[i];
+}
 
 // Reduction and Cipher function types used by the table
 typedef void (*reduction_function_t)(char * key, const char * cipher, size_t step);
@@ -64,7 +69,7 @@ private:
   // Default values for the table
   static const size_t RAINBOW_DEFAULT_ROWS    = 20;
   static const size_t RAINBOW_DEFAULT_CHAIN   = 10;
-  static const size_t RAINBOW_DEFAULT_THREADS = 2;
+  static const size_t RAINBOW_DEFAULT_THREADS = 8;
   static const size_t RAINBOW_NUM_GENERATIONS = 1;
 
   // The default character set used
@@ -82,12 +87,12 @@ private:
 
     bool operator <(const Rainbow_chain & other) const
     {
-      return strncmp(end, other.end, MAX_KEY_LEN) < 0;
+      return memcmp(end, other.end, MAX_KEY_LEN) < 0;
     }
 
     bool operator ==(const Rainbow_chain & other) const
     {
-      return strncmp(end, other.end, MAX_KEY_LEN) == 0;
+      return memcmp(end, other.end, MAX_KEY_LEN) == 0;
     }
   };
 
@@ -206,6 +211,11 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
     std::cout << "Time: " << (std::chrono::duration_cast <std::chrono::milliseconds>(elapsed).count() / 1000.) << std::endl;
     std::cout << "There are now " << (start - table) << " unique endpoints" << std::endl;
   }
+
+  //for (size_t i = 0; i < num_rows; ++i)
+  //{
+  //   print_key(table[i].start); std::cout << " -> "; print_key(table[i].end); std::cout << std::endl;
+  //}
 }
 
 
@@ -281,6 +291,7 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
 }
 
 
+
 // Generates a chain starting from the input index of the chain, with the input digest as the
 // hash at this point, stores the ending key in the input endpoint variable
 template 
@@ -297,6 +308,7 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
 {
   // Reduce the hash to a starting key
   RED_FN(endpoint, hash, chain_link_index);
+  //print_key(endpoint); std::cout << std::endl;
   
   // From this link to the end of the chain
   for (size_t i = 1; i < chain_length; ++i)
@@ -305,6 +317,8 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
     char hashbuf[CIPHER_OUTPUT_LEN];
     CIPHER_FN(hashbuf, endpoint);
     RED_FN(endpoint, hashbuf, chain_link_index + i);
+    //print_key(endpoint); std::cout << std::endl;
+  
   }
 }
   
@@ -325,9 +339,11 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
 {
   if (chain_length == 0)
   {
-    strncpy(endpoint, initial_key, MAX_KEY_LEN);
+    memcpy(endpoint, initial_key, MAX_KEY_LEN);
     return;
   }
+
+  //print_key(initial_key); std::cout << std::endl;
 
   // Encipher the key and generate from here to end of chain from
   // first digest
@@ -349,7 +365,7 @@ Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::find_matching
 {
   const Rainbow_chain * itr = std::lower_bound(table, table + num_rows, *test);
 
-  if (strncmp(itr->end, test->end, MAX_KEY_LEN) == 0)
+  if (memcmp(itr->end, test->end, MAX_KEY_LEN) == 0)
     return itr;
 
   return nullptr;
@@ -381,7 +397,7 @@ std::string Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::s
       CIPHER_FN(real_digest, test.end);
 
       if (memcmp(real_digest, digest, CIPHER_OUTPUT_LEN) == 0)
-        return std::string(test.end, strnlen(test.end, MAX_KEY_LEN));
+        return std::string(test.end,  MAX_KEY_LEN);
     }
   }
 
