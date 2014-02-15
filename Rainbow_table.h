@@ -92,6 +92,10 @@ private:
   };
 
 
+  // A list of threads for generating the table
+  typedef std::vector <std::thread> thread_list_t;
+
+
 // Helper functions
 private:
 
@@ -146,8 +150,7 @@ private:
   size_t               next_key;      // The next key to be used for an endpoint
   const size_t         num_rows;      // Number of rows in the table
   const size_t         chain_length;  // Length of the chains, number of generations of hash 
-                                      // reduction cycles
-  std::vector <std::thread> threads;  // generator threads
+  thread_list_t        threads;       // Generator threads
 };
 
 

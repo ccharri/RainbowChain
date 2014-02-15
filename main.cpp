@@ -19,14 +19,17 @@ using std::istream; using std::ifstream;
 // SHA Rainbow Table params
 const size_t MAX_KEY_LENGTH = 7;
 const size_t SHA_OUTPUT_LEN = 20;
-const size_t MD5_OUTPUT_LEN = 16;
-const size_t NUM_ROWS       = 10000000;
-const size_t CHAIN_LENGTH   = 1000;
-const size_t MAX_FNAME      = 33;
 const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 
-void best_redux_func(char key[MAX_KEY_LENGTH], const char * digest, size_t step)
+// The cipher function we're trying to reverse
+void SHA1_cipher_func(char digest[SHA_OUTPUT_LEN], const char * key)
+{
+  SHA1((const unsigned char *) key, MAX_KEY_LENGTH, (unsigned char *) digest);
+}
+
+// Reduces a SHA1 hash to a MAX_KEY_LENGTH key
+void SHA1_redux_func(char key[MAX_KEY_LENGTH], const char * digest, size_t step)
 {
   for (size_t i = 0; i < MAX_KEY_LENGTH; ++i)
   {
@@ -35,12 +38,15 @@ void best_redux_func(char key[MAX_KEY_LENGTH], const char * digest, size_t step)
   }
 }
 
+// The SHA1 Rainbow table type
+typedef Rainbow_table <SHA1_redux_func, MAX_KEY_LENGTH, SHA1_cipher_func, SHA_OUTPUT_LEN> 
+  SHA1_Rainbow_table_t;
 
-// The cipher function we're trying to reverse
-void SHA_CIPHER_FN(char digest[SHA_OUTPUT_LEN], const char * key)
-{
-  SHA1((const unsigned char *) key, strnlen(key, MAX_KEY_LENGTH), (unsigned char *) digest);
-}
+
+// Other Rainbow table and various other parameters
+const size_t NUM_ROWS     = 100000;
+const size_t CHAIN_LENGTH = 100;
+const size_t MAX_FNAME    = 33;
 
 
 bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME])
@@ -127,9 +133,7 @@ void crack_hashes(Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_L
 void crack_SHA1(istream & hashstream)
 {
   // Construct the rainbow table
-  Rainbow_table <best_redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN> 
-    rtable(NUM_ROWS, CHAIN_LENGTH, CHARACTER_SET);
-
+  SHA1_Rainbow_table_t rtable(NUM_ROWS, CHAIN_LENGTH, CHARACTER_SET);
   crack_hashes(rtable, hashstream);
 }
   
