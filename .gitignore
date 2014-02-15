@@ -1,5 +1,4 @@
 # Executables, swap files, etc
-*.txt
 .*.swp
 hashbash
 
