@@ -4,6 +4,7 @@
 // hashgen.cpp
 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <unordered_map>
 #include <cstring>
@@ -15,11 +16,10 @@
 #endif
 
 using std::cout; using std::endl; using std::unordered_map;
-using std::string; using std::cerr;
+using std::string; using std::cerr; using std::ifstream;
 
 // Constants
 const size_t HASH_OUTPUT_LEN = 20;
-const size_t MAX_KEY_LEN     = 8;
 
 const unordered_map <char, char> NIBBLE_TO_CHAR =
 {
@@ -51,13 +51,19 @@ int main(int argc, char** argv)
 {
   if (argc != 2)
   {
-    cerr << "Usage: hashgen <password>" << endl;
+    cerr << "Usage: hashgen <password-file>" << endl;
     return 1;
   }
 
-  const char * pass = argv[1];
-  char digest[HASH_OUTPUT_LEN];
-  SHA1((const unsigned char *) pass, strnlen(pass, MAX_KEY_LEN), (unsigned char *) digest);
+  const char * passfile = argv[1];
+  ifstream passtr(passfile);
+  string password;
 
-  cout << binary_to_hexstr(digest) << endl;
+  while (passtr >> password)
+  {
+    char digest[HASH_OUTPUT_LEN];
+    SHA1((const unsigned char *) password.c_str(),  password.length(), (unsigned char *) digest);
+
+    cout << binary_to_hexstr(digest) << endl;
+  }
 }

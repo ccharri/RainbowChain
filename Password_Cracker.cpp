@@ -10,15 +10,28 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <vector>
 #include <ctype.h>
-#include <cstdlib>
-#include <cstring>
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <time.h>
 
 #include <openssl/sha.h>   // SHA256
 
-const size_t SHA_OUTPUT_LEN = 20;
+using std::cout; using std::cin; using std::endl; using std::string; using std::ifstream; using std::vector;
+using std::atomic; using std::time_t; using std::time; using std::thread; using std::mutex;
 
-using std::cout; using std::cin; using std::endl; using std::string; using std::ifstream;
+
+const size_t SHA_OUTPUT_LEN = 20;
+const size_t THREAD_MAX = 8;
+
+atomic<int> g_num_cracked (0);
+mutex g_file_mutex;
+
+int g_num_database_entries = 0;
+time_t g_startTime;
+time_t g_endTime;
 
 class Exception{};
 
@@ -91,13 +104,82 @@ string binary_to_hexstr(char* binary, int len)
     return ss.str();
 }
 
+void loadPasswords(ifstream &pfile, vector<string> &passwords)
+{
+	string password;
+	while(pfile >> password)
+	{
+		passwords.push_back(password);
+	}
+
+	cout << "Loaded " << passwords.size() << " passwords." << endl;
+}
+
+void comparePassword(ifstream& ifile, const vector<string>& passwords)
+{
+	g_file_mutex.lock();
+
+	string line;
+	if(!(ifile >> line)){
+		g_file_mutex.unlock();
+		return;
+	}
+
+	g_file_mutex.unlock();
+
+	g_num_database_entries++;
+
+	char lbuffer[SHA_OUTPUT_LEN];
+	char pbuffer[SHA_OUTPUT_LEN];
+
+	memset(&lbuffer, 0, SHA_OUTPUT_LEN);
+	hexstr_to_bin(line, lbuffer);
+
+	for(auto it = passwords.begin(); it != passwords.end(); it++)
+	{
+		memset(&pbuffer, 0, SHA_OUTPUT_LEN);
+		SHA1((const unsigned char *)it->c_str(), it->length(), (unsigned char *) pbuffer);
+
+		if(memcmp(lbuffer, pbuffer, SHA_OUTPUT_LEN) == 0)
+		{
+			cout << "Password cracked\t- " << line << "\t- " << *it << endl;
+			g_num_cracked++;
+		}
+		else if(lbuffer[0] == '\0' && lbuffer[1] == '\0' && ((lbuffer[2] & 0xF0) == '\0'))
+		{
+			char l = lbuffer[2] & 0x0F;
+			char r = pbuffer[2]& 0x0F;
+			if(memcmp(&l, &r, 1) == 0)
+			{
+				if(memcmp(lbuffer + 3, pbuffer + 3, SHA_OUTPUT_LEN -3) == 0)
+				{
+					cout <<"'0'-prefixed Password cracked\t-" << line << "\t- " << *it << endl;
+					g_num_cracked++;
+				}
+			}
+		}
+	}
+}
+
+void fileThread(ifstream& dfile, const vector<string>& passwords)
+{
+	g_file_mutex.lock();
+	while(dfile.good())
+	{
+		g_file_mutex.unlock();
+		comparePassword(dfile, passwords);
+		g_file_mutex.lock();
+	}
+	g_file_mutex.unlock();
+}
 
 int main(int argc, char** argv)
 {
    string dataFile;
    string passFile;
-   char pbuffer[SHA_OUTPUT_LEN];
+   vector<string> passwords;
    char lbuffer[SHA_OUTPUT_LEN];
+   vector<thread> threads;
  	
  	if(parseCommands(argc, argv, &dataFile, &passFile))
  	{
@@ -110,70 +192,40 @@ int main(int argc, char** argv)
    cout << "Opening file " << passFile << " as password." << endl;
    ifstream pfile(passFile);
 
-   strnlen((const char *)dataFile.c_str());
+   loadPasswords(pfile, passwords);
 
-   string line;
-   string password;
-   while(dfile >> line)
+   time(&g_startTime);
+
+   for(int i = 0; i < THREAD_MAX; ++i)
    {
-   		 hexstr_to_bin(line, lbuffer);
-
-   		while(pfile >> password)
-   		{
-   			memset(&pbuffer, 0, SHA_OUTPUT_LEN);
-   			SHA1((const unsigned char *)password.c_str(), password.length(), (unsigned char *) pbuffer);
-
-   			
-   			string hex = binary_to_hexstr(pbuffer, SHA_OUTPUT_LEN);
-   			// cout << password << "\t- " << "\"";
-   			// for(int i = 0; i < hex.length(); ++i)
-   			// {
-   			// 	cout << hex[i];
-   			// }
-
-   			// cout << "\"" <<  endl;
-			
-
-			/*
-   			 cout << ">"; 
-   			 for(int i = 0; i < sizeof(lbuffer); ++i)
-   			 {
-   			 	cout << lbuffer[i];
-   			 }
-
-   			 cout << "\t- " << password << "\t- ";
-
-   			 for(int i = 0; i < sizeof(pbuffer); ++i)
-   			 {
-   			 	cout << pbuffer[i];
-   			 }
-
-   			cout << endl;
-   			*/
-
-   			if(memcmp(lbuffer, pbuffer, SHA_OUTPUT_LEN) == 0)
-			{
-				cout << "Password cracked\t- " << line << "\t- " << password << endl;
-			}
-			else if(lbuffer[0] == '\0' && lbuffer[1] == '\0' && ((lbuffer[2] & 0xF0) == '\0'))
-			{
-				char l = lbuffer[2] & 0x0F;
-				char r = pbuffer[2]& 0x0F;
-				if(memcmp(&l, &r, 1) == 0)
-				{
-					if(memcmp(lbuffer + 3, pbuffer + 3, SHA_OUTPUT_LEN -3) == 0)
-					{
-						cout <<"'0'-prefixed Password cracked\t-" << line << "\t- " << password << endl;
-					}
-				}
-			}
-   		}
-
-   		pfile.clear();
-		pfile.seekg(0, std::ios::beg);
+   		threads.emplace_back(fileThread, std::ref(dfile), passwords);
    }
 
+   for(auto& thread : threads)
+   {
+   		thread.join();
+   }
+
+   // string line;
+   // string password;
+   // while(dfile >> line)
+   // {
+   // 		// comparePassword(line, passwords);
+   // 		threads[(g_num_database_entries++) % THREAD_MAX] = thread(comparePassword, line, passwords);
+
+   // 		// if(g_thread_count > THREAD_MAX)
+   // 		// {
+   // 			threads[(g_num_database_entries) % THREAD_MAX].detach();
+   // 		// }
+   // }
+
+   time(&g_endTime);
+
    cout << "Finished" << endl;
+
+   cout << g_num_cracked << " passwords cracked out of " << g_num_database_entries << " total entries." << endl;
+   cout << ((float)g_num_cracked)/((float)g_num_database_entries) << "% cracked" << endl;
+   cout << g_endTime - g_startTime << " seconds total." << endl;
 
    dfile.close();
    pfile.close();
