@@ -40,6 +40,7 @@ const size_t MAX_KEY_LENGTH = 7;
 const size_t SHA_OUTPUT_LEN = 20;
 const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyz";
 
+// Global counters for the number of cracked hashes
 atomic<long> g_num_cracked(0);
 atomic<long> g_num_entries(0);
 mutex g_file_lock;
@@ -178,8 +179,8 @@ template
   reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
   cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
 >
-void crack_hashes(Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN> & rtable, 
-                  istream & hashstream)
+void crack_hash_loop(Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN> & rtable, 
+                     istream & hashstream)
 {
   // Read and try to crack each hash from the istream
   string hashstr;
@@ -207,6 +208,30 @@ void crack_hashes(Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_L
 }
 
 
+// Dispatches threads to crack hashes read from the input filestream
+template 
+<
+  reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+void crack_hashes(Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN> & rtable, 
+                  istream & hashstream, size_t num_threads)
+{
+  auto start_time = std::chrono::system_clock::now();
+
+  vector<thread> threads;
+  for(size_t i = 0; i < num_threads; ++i)
+    threads.emplace_back(crack_hash_loop<RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>, std::ref(rtable), std::ref(hashstream));
+
+  for_each(threads.begin(), threads.end(), mem_fn(&thread::join));
+
+  auto elapsed = std::chrono::system_clock::now() - start_time;
+  cout << "Cracking Finished.  Total time = " << (std::chrono::duration_cast <std::chrono::milliseconds>(elapsed).count() / 1000.) << " seconds." << endl;
+  cout << g_num_cracked << " cracked out of " << g_num_entries << " total entries." << endl;
+  cout << ((double)g_num_cracked)/((double)g_num_entries)*100.d << "% cracked." << endl;
+}
+
+
 // Constructs a SHA1 rainbow table, then reads in hashes in ascii format
 // from the input stream and tries to crack them one by one
 void crack_SHA1(istream & hashstream, size_t num_threads, size_t num_rows, size_t chain_length)
@@ -215,19 +240,7 @@ void crack_SHA1(istream & hashstream, size_t num_threads, size_t num_rows, size_
   SHA1_Rainbow_table_t rtable(num_rows, chain_length, CHARACTER_SET);
   rtable.save("rtable.txt");
 
-  auto start_time = std::chrono::system_clock::now();
-
-  vector<thread> threads;
-
-  for(size_t i = 0; i < num_threads; ++i)
-    threads.emplace_back(crack_hashes<SHA1_redux_func, MAX_KEY_LENGTH, SHA1_cipher_func, SHA_OUTPUT_LEN>, std::ref(rtable), std::ref(hashstream));
-
-  for_each(threads.begin(), threads.end(), mem_fn(&thread::join));
-
-  auto elapsed = std::chrono::system_clock::now() - start_time;
-  cout << "Cracking Finished.  Total time = " << (std::chrono::duration_cast <std::chrono::milliseconds>(elapsed).count() / 1000.) << " seconds." << endl;
-  cout << g_num_cracked << " cracked out of " << g_num_entries << " total entries." << endl;
-  cout << ((double)g_num_cracked)/((double)g_num_entries)*100.d << "% cracked." << endl;
+  crack_hashes(rtable, hashstream, num_threads);
 }
   
 
