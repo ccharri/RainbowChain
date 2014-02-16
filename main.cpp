@@ -38,11 +38,6 @@ using std::time_t; using std::time;
 // SHA Rainbow Table params
 const size_t MAX_KEY_LENGTH = 7;
 const size_t SHA_OUTPUT_LEN = 20;
-<<<<<<< HEAD
-const size_t NUM_ROWS       = 20000000;
-const size_t CHAIN_LENGTH   = 4000;
-=======
->>>>>>> 7c238a70a01e4d979cbd69570c296beba929dea1
 const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 atomic<long> g_num_cracked(0);
@@ -101,13 +96,10 @@ bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME],
                    size_t & num_threads, size_t & num_rows, size_t & chain_length)
 {
 	char c; 
-  size_t chain, rows;
+  size_t chain, rows, threads;
 
-<<<<<<< HEAD
   while ((c = getopt (argc, argv, "f:r:c:n:")) != -1)
-=======
-  while ((c = getopt (argc, argv, "f:r:c:")) != -1)
->>>>>>> 7c238a70a01e4d979cbd69570c296beba929dea1
+  {
     switch (c)
     {
       case 'f':
@@ -121,23 +113,14 @@ bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME],
           strncpy(filename, optarg, MAX_FNAME);
 
         break;
-<<<<<<< HEAD
 
       case 'n':
-      {
-        int arg = atoi(optarg);
-        if(arg <= 0)
-        {
-          cout << "Invalid number of threads" << endl;
-          return true;
-        }
-        num_threads = arg;
+        threads = atoi(optarg);
+        if(threads > 0)
+          num_threads = threads;
 
         break;
-      }
 
-=======
->>>>>>> 7c238a70a01e4d979cbd69570c296beba929dea1
       case 'c':
         chain = atoi(optarg);
         if (chain > 0)
@@ -151,14 +134,12 @@ bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME],
           num_rows = rows;
 
         break;
-<<<<<<< HEAD
 
-=======
->>>>>>> 7c238a70a01e4d979cbd69570c296beba929dea1
       default:
      	  cerr << "Invalid arguments" << endl;
         return true;
     }
+  }
 
   return false;
 }
@@ -220,9 +201,6 @@ void crack_hashes(Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_L
       g_num_cracked++;
     }
 
-    else
-      cout << "Password not found" << endl;
-
     g_file_lock.lock();
   }
   g_file_lock.unlock();
@@ -262,10 +240,7 @@ int main(int argc, char ** argv)
   size_t num_rows     = DEFAULT_NUM_ROWS; 
   size_t chain_length = DEFAULT_CHAIN_LENGTH; 
 
-  size_t num_rows     = DEFAULT_NUM_ROWS; 
-  size_t chain_length = DEFAULT_CHAIN_LENGTH; 
-
- 	if(parseCommands(argc, argv, filename, num_rows, chain_length))
+ 	if(parseCommands(argc, argv, filename, num_threads, num_rows, chain_length))
  		return 1;
 
   // If no filename provided, read from stdin
