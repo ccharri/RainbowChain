@@ -217,13 +217,8 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::save(con
   {
     for(size_t j = 0; j < MAX_KEY_LEN; j++)
       rfile << table[i].start[j];
-
-     rfile << ' ';
-
     for(size_t j = 0; j < MAX_KEY_LEN; j++)
       rfile << table[i].end[j];
-
-     rfile << std::endl;
   }
 }
 
