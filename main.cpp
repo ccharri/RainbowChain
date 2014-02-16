@@ -23,8 +23,7 @@
 #include <cstring>
 #include <stdio.h>
 
-#include <algorithm>
-#define strnlen(A,B) std::min(strlen(A), B)
+#include "strnlen_cyg.h"
 #endif
 
 
@@ -39,8 +38,11 @@ using std::time_t; using std::time;
 // SHA Rainbow Table params
 const size_t MAX_KEY_LENGTH = 7;
 const size_t SHA_OUTPUT_LEN = 20;
+<<<<<<< HEAD
 const size_t NUM_ROWS       = 20000000;
 const size_t CHAIN_LENGTH   = 4000;
+=======
+>>>>>>> 7c238a70a01e4d979cbd69570c296beba929dea1
 const string CHARACTER_SET  = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 atomic<long> g_num_cracked(0);
@@ -101,7 +103,11 @@ bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME],
 	char c; 
   size_t chain, rows;
 
+<<<<<<< HEAD
   while ((c = getopt (argc, argv, "f:r:c:n:")) != -1)
+=======
+  while ((c = getopt (argc, argv, "f:r:c:")) != -1)
+>>>>>>> 7c238a70a01e4d979cbd69570c296beba929dea1
     switch (c)
     {
       case 'f':
@@ -115,6 +121,7 @@ bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME],
           strncpy(filename, optarg, MAX_FNAME);
 
         break;
+<<<<<<< HEAD
 
       case 'n':
       {
@@ -129,6 +136,8 @@ bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME],
         break;
       }
 
+=======
+>>>>>>> 7c238a70a01e4d979cbd69570c296beba929dea1
       case 'c':
         chain = atoi(optarg);
         if (chain > 0)
@@ -142,7 +151,10 @@ bool parseCommands(int argc, char ** argv, char filename[MAX_FNAME],
           num_rows = rows;
 
         break;
+<<<<<<< HEAD
 
+=======
+>>>>>>> 7c238a70a01e4d979cbd69570c296beba929dea1
       default:
      	  cerr << "Invalid arguments" << endl;
         return true;
@@ -250,7 +262,10 @@ int main(int argc, char ** argv)
   size_t num_rows     = DEFAULT_NUM_ROWS; 
   size_t chain_length = DEFAULT_CHAIN_LENGTH; 
 
- 	if(parseCommands(argc, argv, filename, num_threads, num_rows, chain_length))
+  size_t num_rows     = DEFAULT_NUM_ROWS; 
+  size_t chain_length = DEFAULT_CHAIN_LENGTH; 
+
+ 	if(parseCommands(argc, argv, filename, num_rows, chain_length))
  		return 1;
 
   // If no filename provided, read from stdin

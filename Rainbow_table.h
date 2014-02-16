@@ -28,8 +28,7 @@ void print_key(const char * key)
 #include <cstring>
 #include <stdio.h>
 
-#include <algorithm>
-#define strnlen(A,B) std::min(strlen(A), B)
+#include "strnlen_cyg.h"
 #endif
 
 // Reduction and Cipher function types used by the table
