@@ -69,6 +69,10 @@ public:
   std::string search(const char * digest);
 
 
+  // Saves the table to the file with the input name
+  void save(const std::string & filename) const;
+
+
 // Private static constants
 private:
 
@@ -106,11 +110,6 @@ private:
 // Helper functions
 private:
 
-  // Finds the row of the table that matches the input one, returns nullptr if 
-  // no such row found
-  const Rainbow_chain * find_matching_endpoint(const Rainbow_chain * endpoint);
-
-
   // Generates the table 
   void generate_table();
 
@@ -147,6 +146,11 @@ private:
   // input index of the table, puts the thread in the threads list so
   // the main thread can join it.
   void dispatch_generator_thread(size_t start_idx, size_t rows_per_thread);
+
+
+  // Finds the row of the table that matches the input one, returns nullptr if 
+  // no such row found
+  const Rainbow_chain * find_matching_endpoint(const Rainbow_chain * endpoint) const;
 
 
 // Instance variables
@@ -188,30 +192,32 @@ Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::Rainbow_table
   chain_length(chain_length_in) 
 {
   generate_table();
+}
 
-  std::ofstream rfile("rainbow_table.txt");
-  rfile << num_rows << std::endl;
 
-  Rainbow_chain* table_ptr = table;
+// Saves the table to the file with the input name
+template 
+<
+  reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::save(const std::string & filename) const
+{
+  std::ofstream rfile(filename);
+  rfile << num_rows << ' ' << chain_length << std::endl;
+
   for(size_t i = 0; i < num_rows; ++i)
   {
-    for(int j = 0; j < MAX_KEY_LEN && table_ptr->start[j]; j++)
-    {
-      rfile << table_ptr->start[j];
-    }
-     rfile << " ";
-     for(int j = 0; j < MAX_KEY_LEN && table_ptr->end[j]; j++)
-     {
-      rfile << table_ptr->end[j];
-     }
+    for(size_t j = 0; j < MAX_KEY_LEN; j++)
+      rfile << table[i].start[j];
+
+     rfile << ' ';
+
+    for(size_t j = 0; j < MAX_KEY_LEN; j++)
+      rfile << table[i].end[j];
+
      rfile << std::endl;
-
-    table_ptr++;
   }
-
-
-
-  rfile.close();
 }
 
 
@@ -377,7 +383,7 @@ template
 typename Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::Rainbow_chain const *
 Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::find_matching_endpoint(
   const Rainbow_chain * test
-)
+) const
 {
   const Rainbow_chain * itr = std::lower_bound(table, table + num_rows, *test);
 

@@ -158,6 +158,7 @@ void crack_hashes(Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_L
       cout << "Found matching password " << password << endl;
       g_num_cracked++;
     }
+
     else
       cout << "Password not found" << endl;
 
@@ -166,41 +167,30 @@ void crack_hashes(Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_L
   g_file_lock.unlock();
 }
 
+
 // Constructs a SHA1 rainbow table, then reads in hashes in ascii format
 // from the input stream and tries to crack them one by one
 void crack_SHA1(istream & hashstream, int num_threads)
 {
-  time_t table_start, table_end, crack_start, crack_end;
-
-  time(&table_start);
   // Construct the rainbow table
   Rainbow_table <best_redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN> 
     rtable(NUM_ROWS, CHAIN_LENGTH, CHARACTER_SET);
 
-  time(&table_end);
+  rtable.save("rtable.txt");
 
-  cout << "Table constructed in " << table_end - table_start << " seconds." << endl;
-
-  time(&crack_start);
+  auto start_time = std::chrono::system_clock::now();
 
   vector<thread> threads;
 
   for(int i = 0; i < num_threads; ++i)
-  {
     threads.emplace_back(crack_hashes<best_redux_func, MAX_KEY_LENGTH, SHA_CIPHER_FN, SHA_OUTPUT_LEN>, std::ref(rtable), std::ref(hashstream));
-  }
 
-  for(thread& t : threads)
-  {
-    t.join();
-  }
+  for_each(threads.begin(), threads.end(), mem_fn(&thread::join));
 
-  time(&crack_end);
-
-  cout << "Cracking Finished.  Total time = " << crack_end - crack_start << " seconds." << endl;
+  auto elapsed = std::chrono::system_clock::now() - start_time;
+  cout << "Cracking Finished.  Total time = " << (std::chrono::duration_cast <std::chrono::milliseconds>(elapsed).count() / 1000.) << " seconds." << endl;
   cout << g_num_cracked << " cracked out of " << g_num_entries << " total entries." << endl;
   cout << ((double)g_num_cracked)/((double)g_num_entries)*100.d << "% cracked." << endl;
-
 }
   
 
