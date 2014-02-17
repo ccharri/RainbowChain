@@ -59,7 +59,11 @@ public:
 
   // Constructor constructs the table from the input initialization
   // key list and the list of reduction functions
-  Rainbow_table(size_t num_rows_in, size_t chain_length_in, const std::string & character_set); 
+  Rainbow_table(size_t num_rows_in, size_t chain_length_in, const std::string & character_set_in); 
+
+
+  // File constructor reads in the endpoints from a file and constructs the table from them
+  Rainbow_table(std::istream & infile, const std::string & character_set_in); 
 
 
   // Searches the table for the input hash, returning the corresponding
@@ -159,10 +163,11 @@ private:
 private:
 
   Rainbow_chain *      table;         // The table data store
+  Rainbow_chain *      last_row;      // The last generated row in the table
   const std::string    character_set; // The set of characters we're exploring
   size_t               next_key;      // The next key to be used for an endpoint
-  const size_t         num_rows;      // Number of rows in the table
-  const size_t         chain_length;  // Length of the chains, number of generations of hash 
+  size_t               num_rows;      // Number of rows in the table
+  size_t               chain_length;  // Length of the chains, number of generations of hash 
   thread_list_t        threads;       // Generator threads
 };
 
@@ -205,14 +210,46 @@ template
 void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::save(const std::string & filename) const
 {
   std::ofstream rfile(filename);
-  rfile << num_rows << ' ' << chain_length << std::endl;
+  rfile << (last_row - table) << ' ' << chain_length << std::endl;
 
-  for(size_t i = 0; i < num_rows; ++i)
+  for(size_t i = 0; i < size_t(last_row - table); ++i)
   {
     for(size_t j = 0; j < MAX_KEY_LEN; j++)
       rfile << table[i].start[j];
     for(size_t j = 0; j < MAX_KEY_LEN; j++)
       rfile << table[i].end[j];
+  }
+}
+
+
+// File constructor reads in the endpoints from a file and constructs the table from them
+template 
+<
+  reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::Rainbow_table(
+  std::istream &      infile, 
+  const std::string & character_set_in
+)
+: character_set(character_set_in)
+{
+  // Should probably error check, but...
+  int number_rows, chain_len;
+  infile >> number_rows >> chain_len;
+
+  num_rows     = number_rows;
+  chain_length = chain_len;
+  table        = new Rainbow_chain[num_rows];
+  last_row     = table + num_rows;
+
+  // Discard the newline
+  infile.get();
+
+  for (size_t i = 0; i < num_rows && infile; ++i)
+  {
+    infile.read(table[i].start, MAX_KEY_LEN);
+    infile.read(table[i].end, MAX_KEY_LEN);
   }
 }
 
@@ -225,20 +262,20 @@ template
 >
 void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_table()
 {
-  Rainbow_chain * start = table = new Rainbow_chain[num_rows];
+  last_row = table = new Rainbow_chain[num_rows];
 
   // For each provided intial key, generate a chain
-  for (size_t i = 0; i < RAINBOW_NUM_GENERATIONS && size_t(start - table) < num_rows; ++i)
+  for (size_t i = 0; i < RAINBOW_NUM_GENERATIONS && size_t(last_row - table) < num_rows; ++i)
   {
     auto start_time = std::chrono::system_clock::now();
 
-    generate_table_from(start);
+    generate_table_from(last_row);
     std::sort(table, table + num_rows);
-    start = std::unique(table, table + num_rows);
+    last_row = std::unique(table, table + num_rows);
 
     auto elapsed = std::chrono::system_clock::now() - start_time;
     std::cout << "Time: " << (std::chrono::duration_cast <std::chrono::milliseconds>(elapsed).count() / 1000.) << std::endl;
-    std::cout << "There are now " << (start - table) << " unique endpoints" << std::endl;
+    std::cout << "There are now " << (last_row - table) << " unique endpoints" << std::endl;
   }
 }
 
@@ -382,7 +419,7 @@ Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::find_matching
   const Rainbow_chain * test
 ) const
 {
-  const Rainbow_chain * itr = std::lower_bound(table, table + num_rows, *test);
+  const Rainbow_chain * itr = std::lower_bound(table, last_row, *test);
 
   if (memcmp(itr->end, test->end, MAX_KEY_LEN) == 0)
     return itr;
