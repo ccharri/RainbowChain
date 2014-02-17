@@ -10,6 +10,11 @@
 #include <cstring>
 #include <openssl/sha.h>   // SHA1
 
+#ifdef __CYGWIN__
+#include <algorithm>
+#define strnlen(A,B) std::min(strlen(A), B)
+#endif
+
 using std::cout; using std::endl; using std::unordered_map;
 using std::string; using std::cerr; using std::ifstream;
 

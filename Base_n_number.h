@@ -3,25 +3,22 @@
 // EECS 588
 // N_number.h
 
-#ifndef BASE_N_NUMBER_
-#define BASE_N_NUMBER_
+#ifndef BASE_N_NUMBER_H_
+#define BASE_N_NUMBER_H_
 
 #include <cstdlib> // size_t
+#include <vector> 
 
 
 // A not particularly good implementation of a base n number
-template <size_t NUM_PLACES>
 class Base_n_number
 {
 public:
 
   // Construct the number with the input number of places
-  Base_n_number(size_t base)
-  : m_base(base)
-  {
-    for (size_t & num : m_rep)
-      num = 0;
-  }
+  Base_n_number(size_t base, size_t num_places)
+  : m_base(base), m_rep(num_places, 0)
+  {}
 
   
   // Sets the number to a value
@@ -37,7 +34,7 @@ public:
   {
     bool increment = true;
 
-    for (size_t i = 0; i < NUM_PLACES && increment; ++i)
+    for (size_t i = 0; i < m_rep.size() && increment; ++i)
     {
       if (increment)
       {
@@ -65,7 +62,7 @@ private:
     size_t place_val     = 1;
     size_t highest_place = 0;
 
-    for (; highest_place < NUM_PLACES; ++highest_place, place_val *= m_base)
+    for (; highest_place < m_rep.size(); ++highest_place, place_val *= m_base)
       if (val < place_val * m_base)
         break;
 
@@ -80,9 +77,9 @@ private:
   }
     
 
-  size_t m_base;            // The base of the number
-  size_t m_rep[NUM_PLACES]; // The representation of each "digit" of the number
+  size_t               m_base; // The base of the number
+  std::vector <size_t> m_rep;  // The representation of each "digit" of the number
 };
 
 
-#endif // BASE_N_NUMBER_
+#endif // BASE_N_NUMBER_H_

@@ -14,17 +14,21 @@
 #include <cstring>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <chrono>
 
-void print_key(const char * key)
-{
-  for (int i = 0; i < 7; ++i)
-    std::cout << key[i];
-}
+#ifdef __CYGWIN__
+#include <getopt.h>
+#include <cstring>
+#include <stdio.h>
+
+#include "strnlen_cyg.h"
+#endif
 
 // Reduction and Cipher function types used by the table
 typedef void (*reduction_function_t)(char * key, const char * cipher, size_t step);
 typedef void (*cipher_function_t)(char * cipher, const char * key);
+
 
 
 // The rainbow table structure
@@ -55,12 +59,20 @@ public:
 
   // Constructor constructs the table from the input initialization
   // key list and the list of reduction functions
-  Rainbow_table(size_t num_rows_in, size_t chain_length_in, const std::string & character_set); 
+  Rainbow_table(size_t num_rows_in, size_t chain_length_in, const std::string & character_set_in); 
+
+
+  // File constructor reads in the endpoints from a file and constructs the table from them
+  Rainbow_table(std::istream & infile, const std::string & character_set_in); 
 
 
   // Searches the table for the input hash, returning the corresponding
   // password if found, null otherwise
   std::string search(const char * digest);
+
+
+  // Saves the table to the file with the input name
+  void save(const std::string & filename) const;
 
 
 // Private static constants
@@ -104,11 +116,6 @@ private:
 // Helper functions
 private:
 
-  // Finds the row of the table that matches the input one, returns nullptr if 
-  // no such row found
-  const Rainbow_chain * find_matching_endpoint(const Rainbow_chain * endpoint);
-
-
   // Generates the table 
   void generate_table();
 
@@ -116,7 +123,7 @@ private:
   // Generates a range of the table, starting at the input key and index and 
   // generating rows_per_thread rows
   void generate_table_range(size_t start_idx, size_t rows_per_thread, 
-                            Base_n_number <MAX_KEY_LEN> keygen);
+                            Base_n_number keygen);
 
 
   // Dispatches threads to generate the table from the input row down
@@ -138,7 +145,7 @@ private:
 
 
   // Writes the next key to be generated into the slot at input table index
-  void write_key(const Base_n_number <MAX_KEY_LEN> & keygen, size_t idx);
+  void write_key(const Base_n_number & keygen, size_t idx);
 
 
   // Dispatches a thread to generate the input number of rows from the
@@ -147,14 +154,20 @@ private:
   void dispatch_generator_thread(size_t start_idx, size_t rows_per_thread);
 
 
+  // Finds the row of the table that matches the input one, returns nullptr if 
+  // no such row found
+  const Rainbow_chain * find_matching_endpoint(const Rainbow_chain * endpoint) const;
+
+
 // Instance variables
 private:
 
   Rainbow_chain *      table;         // The table data store
+  Rainbow_chain *      last_row;      // The last generated row in the table
   const std::string    character_set; // The set of characters we're exploring
   size_t               next_key;      // The next key to be used for an endpoint
-  const size_t         num_rows;      // Number of rows in the table
-  const size_t         chain_length;  // Length of the chains, number of generations of hash 
+  size_t               num_rows;      // Number of rows in the table
+  size_t               chain_length;  // Length of the chains, number of generations of hash 
   thread_list_t        threads;       // Generator threads
 };
 
@@ -188,6 +201,59 @@ Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::Rainbow_table
 }
 
 
+// Saves the table to the file with the input name
+template 
+<
+  reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::save(const std::string & filename) const
+{
+  std::ofstream rfile(filename);
+  rfile << (last_row - table) << ' ' << chain_length << std::endl;
+
+  for(size_t i = 0; i < size_t(last_row - table); ++i)
+  {
+    for(size_t j = 0; j < MAX_KEY_LEN; j++)
+      rfile << table[i].start[j];
+    for(size_t j = 0; j < MAX_KEY_LEN; j++)
+      rfile << table[i].end[j];
+  }
+}
+
+
+// File constructor reads in the endpoints from a file and constructs the table from them
+template 
+<
+  reduction_function_t RED_FN, size_t MAX_KEY_LEN, 
+  cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
+>
+Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::Rainbow_table(
+  std::istream &      infile, 
+  const std::string & character_set_in
+)
+: character_set(character_set_in)
+{
+  // Should probably error check, but...
+  int number_rows, chain_len;
+  infile >> number_rows >> chain_len;
+
+  num_rows     = number_rows;
+  chain_length = chain_len;
+  table        = new Rainbow_chain[num_rows];
+  last_row     = table + num_rows;
+
+  // Discard the newline
+  infile.get();
+
+  for (size_t i = 0; i < num_rows && infile; ++i)
+  {
+    infile.read(table[i].start, MAX_KEY_LEN);
+    infile.read(table[i].end, MAX_KEY_LEN);
+  }
+}
+
+
 // Generates the table 
 template 
 <
@@ -196,26 +262,21 @@ template
 >
 void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_table()
 {
-  Rainbow_chain * start = table = new Rainbow_chain[num_rows];
+  last_row = table = new Rainbow_chain[num_rows];
 
   // For each provided intial key, generate a chain
-  for (size_t i = 0; i < RAINBOW_NUM_GENERATIONS && size_t(start - table) < num_rows; ++i)
+  for (size_t i = 0; i < RAINBOW_NUM_GENERATIONS && size_t(last_row - table) < num_rows; ++i)
   {
     auto start_time = std::chrono::system_clock::now();
 
-    generate_table_from(start);
+    generate_table_from(last_row);
     std::sort(table, table + num_rows);
-    start = std::unique(table, table + num_rows);
+    last_row = std::unique(table, table + num_rows);
 
     auto elapsed = std::chrono::system_clock::now() - start_time;
     std::cout << "Time: " << (std::chrono::duration_cast <std::chrono::milliseconds>(elapsed).count() / 1000.) << std::endl;
-    std::cout << "There are now " << (start - table) << " unique endpoints" << std::endl;
+    std::cout << "There are now " << (last_row - table) << " unique endpoints" << std::endl;
   }
-
-  //for (size_t i = 0; i < num_rows; ++i)
-  //{
-  //   print_key(table[i].start); std::cout << " -> "; print_key(table[i].end); std::cout << std::endl;
-  //}
 }
 
 
@@ -260,7 +321,7 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::dispatch
 {
   // Create a number where each digit represents the index of the character
   // set to use for that index of the key
-  Base_n_number <MAX_KEY_LEN> keygen(character_set.length());
+  Base_n_number keygen(character_set.length(), MAX_KEY_LEN);
   keygen = next_key;
   next_key += rows_per_thread;
 
@@ -279,7 +340,7 @@ template
 void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_table_range(
   size_t start_idx,
   size_t rows_per_thread,
-  Base_n_number <MAX_KEY_LEN> keygen
+  Base_n_number keygen
 )
 {
   for (size_t i = start_idx; i < start_idx + rows_per_thread; ++i)
@@ -308,7 +369,6 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
 {
   // Reduce the hash to a starting key
   RED_FN(endpoint, hash, chain_link_index);
-  //print_key(endpoint); std::cout << std::endl;
   
   // From this link to the end of the chain
   for (size_t i = 1; i < chain_length; ++i)
@@ -317,8 +377,6 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
     char hashbuf[CIPHER_OUTPUT_LEN];
     CIPHER_FN(hashbuf, endpoint);
     RED_FN(endpoint, hashbuf, chain_link_index + i);
-    //print_key(endpoint); std::cout << std::endl;
-  
   }
 }
   
@@ -343,8 +401,6 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
     return;
   }
 
-  //print_key(initial_key); std::cout << std::endl;
-
   // Encipher the key and generate from here to end of chain from
   // first digest
   char hashbuf[CIPHER_OUTPUT_LEN];
@@ -361,9 +417,9 @@ template
 typename Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::Rainbow_chain const *
 Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::find_matching_endpoint(
   const Rainbow_chain * test
-)
+) const
 {
-  const Rainbow_chain * itr = std::lower_bound(table, table + num_rows, *test);
+  const Rainbow_chain * itr = std::lower_bound(table, last_row, *test);
 
   if (memcmp(itr->end, test->end, MAX_KEY_LEN) == 0)
     return itr;
@@ -412,14 +468,13 @@ template
   cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
 >
 void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::write_key(
-  const Base_n_number <MAX_KEY_LEN> & num,
-  size_t                              index
+  const Base_n_number & num,
+  size_t                index
 )
 {
   for (size_t i = 0; i < MAX_KEY_LEN; ++i)
     table[index].start[i] = character_set[num[i]];
 }
   
-
 
 #endif
