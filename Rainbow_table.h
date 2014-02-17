@@ -17,12 +17,6 @@
 #include <fstream>
 #include <chrono>
 
-void print_key(const char * key)
-{
-  for (int i = 0; i < 7; ++i)
-    std::cout << key[i];
-}
-
 #ifdef __CYGWIN__
 #include <getopt.h>
 #include <cstring>
@@ -125,7 +119,7 @@ private:
   // Generates a range of the table, starting at the input key and index and 
   // generating rows_per_thread rows
   void generate_table_range(size_t start_idx, size_t rows_per_thread, 
-                            Base_n_number <MAX_KEY_LEN> keygen);
+                            Base_n_number keygen);
 
 
   // Dispatches threads to generate the table from the input row down
@@ -147,7 +141,7 @@ private:
 
 
   // Writes the next key to be generated into the slot at input table index
-  void write_key(const Base_n_number <MAX_KEY_LEN> & keygen, size_t idx);
+  void write_key(const Base_n_number & keygen, size_t idx);
 
 
   // Dispatches a thread to generate the input number of rows from the
@@ -246,11 +240,6 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
     std::cout << "Time: " << (std::chrono::duration_cast <std::chrono::milliseconds>(elapsed).count() / 1000.) << std::endl;
     std::cout << "There are now " << (start - table) << " unique endpoints" << std::endl;
   }
-
-  //for (size_t i = 0; i < num_rows; ++i)
-  //{
-  //   print_key(table[i].start); std::cout << " -> "; print_key(table[i].end); std::cout << std::endl;
-  //}
 }
 
 
@@ -295,7 +284,7 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::dispatch
 {
   // Create a number where each digit represents the index of the character
   // set to use for that index of the key
-  Base_n_number <MAX_KEY_LEN> keygen(character_set.length());
+  Base_n_number keygen(character_set.length(), MAX_KEY_LEN);
   keygen = next_key;
   next_key += rows_per_thread;
 
@@ -314,7 +303,7 @@ template
 void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate_table_range(
   size_t start_idx,
   size_t rows_per_thread,
-  Base_n_number <MAX_KEY_LEN> keygen
+  Base_n_number keygen
 )
 {
   for (size_t i = start_idx; i < start_idx + rows_per_thread; ++i)
@@ -343,7 +332,6 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
 {
   // Reduce the hash to a starting key
   RED_FN(endpoint, hash, chain_link_index);
-  //print_key(endpoint); std::cout << std::endl;
   
   // From this link to the end of the chain
   for (size_t i = 1; i < chain_length; ++i)
@@ -352,8 +340,6 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
     char hashbuf[CIPHER_OUTPUT_LEN];
     CIPHER_FN(hashbuf, endpoint);
     RED_FN(endpoint, hashbuf, chain_link_index + i);
-    //print_key(endpoint); std::cout << std::endl;
-  
   }
 }
   
@@ -377,8 +363,6 @@ void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::generate
     memcpy(endpoint, initial_key, MAX_KEY_LEN);
     return;
   }
-
-  //print_key(initial_key); std::cout << std::endl;
 
   // Encipher the key and generate from here to end of chain from
   // first digest
@@ -447,14 +431,13 @@ template
   cipher_function_t CIPHER_FN, size_t CIPHER_OUTPUT_LEN
 >
 void Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_LEN>::write_key(
-  const Base_n_number <MAX_KEY_LEN> & num,
-  size_t                              index
+  const Base_n_number & num,
+  size_t                index
 )
 {
   for (size_t i = 0; i < MAX_KEY_LEN; ++i)
     table[index].start[i] = character_set[num[i]];
 }
   
-
 
 #endif
