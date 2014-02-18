@@ -15,14 +15,6 @@
 #include <atomic>
 #include <vector>
 
-#ifdef __CYGWIN__
-#include <getopt.h>
-#include <cstring>
-#include <stdio.h>
-
-#include "strnlen_cyg.h"
-#endif
-
 using std::vector; using std::string; using std::cerr;
 using std::cout; using std::endl; using std::cin;
 using std::istream; using std::ifstream; 
@@ -313,8 +305,10 @@ void crack_SHA1(istream & hashstream, size_t num_rows, size_t chain_length, cons
   }
 
   else
+  {
     rtable = new SHA1_Rainbow_table_t(num_rows, chain_length, DEFAULT_CHARACTER_SET);
+    rtable->save(RAINBOW_TABLE_FILE);
+  }
 
-  rtable->save(RAINBOW_TABLE_FILE);
   crack_hashes(*rtable, hashstream);
 }
