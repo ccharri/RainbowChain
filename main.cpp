@@ -295,7 +295,7 @@ void crack_hashes(Rainbow_table <RED_FN, MAX_KEY_LEN, CIPHER_FN, CIPHER_OUTPUT_L
   auto elapsed = std::chrono::system_clock::now() - start_time;
   cout << "Cracking Finished.  Total time = " << (std::chrono::duration_cast <std::chrono::milliseconds>(elapsed).count() / 1000.) << " seconds." << endl;
   cout << g_num_cracked << " cracked out of " << g_num_entries << " total entries." << endl;
-  cout << ((double)g_num_cracked)/((double)g_num_entries)*100.d << "% cracked." << endl;
+  cout << ((double)g_num_cracked)/((double)g_num_entries)*100. << "% cracked." << endl;
 }
 
 

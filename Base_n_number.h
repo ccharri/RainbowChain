@@ -1,7 +1,7 @@
 // John Norwood
 // Chris Harris
 // EECS 588
-// N_number.h
+// Base_n_number.h
 
 #ifndef BASE_N_NUMBER_H_
 #define BASE_N_NUMBER_H_

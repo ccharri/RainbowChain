@@ -17,13 +17,6 @@
 #include <fstream>
 #include <chrono>
 
-#ifdef __CYGWIN__
-#include <getopt.h>
-#include <cstring>
-#include <stdio.h>
-
-#include "strnlen_cyg.h"
-#endif
 
 // Reduction and Cipher function types used by the table
 typedef void (*reduction_function_t)(char * key, const char * cipher, size_t step);
